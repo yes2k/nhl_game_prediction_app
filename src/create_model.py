@@ -35,6 +35,7 @@ def get_game_ids(date: str) -> pl.DataFrame:
 
     # Extract the relevant information and create a DataFrame
     out = pl.DataFrame([{
+        
         "game_id": game['id'],
         "date": game['date'],
         "home_team": game['homeTeam']['abbrev'],
@@ -58,6 +59,7 @@ def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
         pl.read_database(query=query, connection=con)
     )
     
+    print(out)
      # Create team_id_map
     team_id_map = get_all_teams(max_date)
 
@@ -111,3 +113,28 @@ def fit_model(
     model_fit = model.sample(datalist, parallel_chains=4)
 
     return model_fit
+
+result = get_model_data("data", "2023", "2024-02-01")
+
+datalist = {
+    "N": result["model_df"].shape[0],
+    "n_teams": result["team_id_map"].shape[0],
+    "home_teams": result["model_df"]["home_id"].to_numpy(),
+    "away_teams": result["model_df"]["away_id"].to_numpy(),
+    "home_goals": result["model_df"]["home_goals"].to_numpy(),
+    "away_goals": result["model_df"]["away_goals"].to_numpy(),
+    "home_new": result["team_id_map"].filter(pl.col("team") == "TOR")["id"].to_numpy(),
+    "away_new": result["team_id_map"].filter(pl.col("team") == "BOS")["id"].to_numpy(),
+    "N_new": 1
+}
+
+# model = cmdstanpy.CmdStanModel(stan_file = "src/model/model.stan")
+# model_fit = model.sample(datalist, parallel_chains=4)
+
+# home_new_draw = model_fit.stan_variable("home_new")
+# away_new_draw = model_fit.stan_variable("away_new")
+
+# draws_df = pl.DataFrame({
+#     "home_new_draw": home_new_draw,
+#     "away_new_draw": away_new_draw
+# })
