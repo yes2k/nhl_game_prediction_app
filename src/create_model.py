@@ -26,6 +26,24 @@ def get_all_teams(date: str) -> pl.DataFrame:
     return out
 
 
+def get_game_ids(date: str) -> pl.DataFrame:
+    url = f"https://api-web.nhle.com/v1/schedule/{date}"
+    response = requests.get(url)
+    data = response.json()
+
+    games = data['gameWeek'][0]['games']
+
+    # Extract the relevant information and create a DataFrame
+    out = pl.DataFrame([{
+        "game_id": game['id'],
+        "date": game['date'],
+        "home_team": game['homeTeam']['abbrev'],
+        "away_team": game['awayTeam']['abbrev'],
+        "season": game['season']
+    } for game in games])
+
+    return out
+
 
 def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
     con = sqlite3.connect(f"{path_to_db}/data.db") 
@@ -41,7 +59,7 @@ def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
     )
     
      # Create team_id_map
-    team_id_map = get_all_teams("2024-10-12")
+    team_id_map = get_all_teams(max_date)
 
     # Join out with team_id_map for home and away teams
     out = (
@@ -64,15 +82,7 @@ def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
         "team_id_map": team_id_map
     }
 
-    model_dat = {
-        "n_teams": result["team_id_map"].shape[0],
-        "home_teams": result["model_df"]["home_id"].to_numpy(),
-        "away_teams": result["model_df"]["away_id"].to_numpy(),
-        "home_goals": result["model_df"]["home_goals"].to_numpy(),
-        "away_goals": result["model_df"]["away_goals"].to_numpy(),
-    }
-
-    return model_dat
+    return result
 
 
 def fit_model(
@@ -83,7 +93,21 @@ def fit_model(
         home_team: str, 
         away_team: str
     ):
-    pass
+    model = cmdstanpy.CmdStanModel(stan_file = path_to_model)
+    result = get_model_data(path_to_db, season, max_date)
     
+    datalist = {
+        "N": result["model_df"].shape[0],
+        "n_teams": result["team_id_map"].shape[0],
+        "home_teams": result["model_df"]["home_id"].to_numpy(),
+        "away_teams": result["model_df"]["away_id"].to_numpy(),
+        "home_goals": result["model_df"]["home_goals"].to_numpy(),
+        "away_goals": result["model_df"]["away_goals"].to_numpy(),
+        "home_new": result["team_id_map"].filter(pl.col("team") == home_team).select("id").to_list(),
+        "away_new": result["team_id_map"].filter(pl.col("team") == away_team).select("id").to_list(),
+        "N_new": 1
+    }
 
-# print(get_model_data("data", "2024", "2024-10-12"))
+    model_fit = model.sample(datalist, parallel_chains=4)
+
+    return model_fit
