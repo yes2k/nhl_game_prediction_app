@@ -1,0 +1,5 @@
+polars
+requests
+sqlalchemy
+pandas
+pyarrow>=8.0.0
