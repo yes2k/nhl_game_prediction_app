@@ -52,10 +52,10 @@ generated quantities{
   );
 
   
-  // Probability the home team scores first in OT 
-//   array[N_new] real home_ot_win_prob;
-//   for(i in 1:N_new){
-//     home_ot_win_prob[i] = exp(att[home_new[i]]) / (exp(att[home_new[i]]) + exp(att[away_new[i]]));
-//   }
+//   Probability the home team scores first in OT 
+  array[N_new] real home_ot_win_prob;
+  for(i in 1:N_new){
+    home_ot_win_prob[i] = exp(att[home_new[i]]) / (exp(att[home_new[i]]) + exp(att[away_new[i]]));
+  }
 }
 
