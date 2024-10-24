@@ -6,3 +6,4 @@ pyarrow>=8.0.0
 cmdstanpy
 numpy
 fastapi[standard]
+jinja2
