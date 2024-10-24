@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NHL Game Prediction App</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center my-4">
+                <h1>NHL Game Prediction App</h1>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-3">
+                <!-- Left 20% content goes here -->
+                <form>
+                    <div class="form-group">
+                    <label for="gameDate">Select Game Date:</label>
+                    <input type="date" class="form-control" id="gameDate" name="gameDate">
+                    </div>
+                    <div class="form-group">
+                        <label for="gameSelect">Select Game:</label>
+                        <select class="form-control" id="gameSelect" name="gameSelect">
+                            <option value="gid">TOR @ BOS</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary">Predict</button>
+                </form>
+            </div>
+            <div class="col-md-9">
+                <ul class="nav nav-tabs" id="myTab" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="game-prediction-tab" data-toggle="tab" href="#game-prediction" role="tab" aria-controls="game-prediction" aria-selected="true">Game Prediction</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="team-parameters-tab" data-toggle="tab" href="#team-parameters" role="tab" aria-controls="team-parameters" aria-selected="false">Team Parameters</a>
+                    </li>
+                </ul>
+                <div class="tab-content" id="myTabContent">
+                    <div class="tab-pane fade show active" id="game-prediction" role="tabpanel" aria-labelledby="game-prediction-tab">
+                        <!-- Plots and tables for game prediction -->
+                    </div>
+                    <div class="tab-pane fade" id="team-parameters" role="tabpanel" aria-labelledby="team-parameters-tab">
+                        <!-- Plot of latent att and def variables go here  -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <script>
+        document.getElementById("gameDate").addEventListener("change", function() {
+            var date = this.value;
+            console.log(date);
+
+            fetch(`/game_ids/${date}`, { method: 'GET' })
+                .then(response => response.json())
+                .then(data => {
+                    var select = document.getElementById("gameSelect");
+                    select.innerHTML = ''; // Clear existing options
+                    data.forEach(game => {
+                        var option = document.createElement("option");
+                        option.text = `${game.away_team} @ ${game.home_team}`;
+                        option.value = game.gid;
+                        select.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Failed to fetch game IDs: ', error);
+                });
+        });
+    </script>
+</body>
+</html>
