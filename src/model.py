@@ -33,7 +33,7 @@ def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
         SELECT date, CAST(id as text) game_id, away_team, 
                 home_team, home_goals, away_goals
         FROM goal_data
-        WHERE date < "{max_date}" AND substr(game_id, 1, 4) == "{season}"
+        WHERE date <= "{max_date}" AND substr(game_id, 1, 4) == "{season}"
         ORDER BY game_id
     """
     out = (
@@ -42,6 +42,8 @@ def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
     
      # Create team_id_map
     team_id_map = get_all_teams(max_date)
+
+    print(out)
 
     # Join out with team_id_map for home and away teams
     out = (
@@ -137,7 +139,6 @@ def get_table_of_predictions(model_dict) -> pl.DataFrame:
     combination_counts = pred_df.group_by(["home", "away"]).len().sort("len", descending=True)
 
     return {
-        "prob_home_team_ot_win": prob_home_team_ot_win,
         "combination_counts": combination_counts.to_dicts()
     }
 
