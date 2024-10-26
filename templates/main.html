@@ -24,10 +24,9 @@
                     <div class="form-group">
                         <label for="gameSelect">Select Game:</label>
                         <select class="form-control" id="gameSelect" name="gameSelect">
-                            <option value="gid">TOR @ BOS</option>
                         </select>
                     </div>
-                    <button type="button" class="btn btn-primary">Predict</button>
+                    <button type="button" class="btn btn-primary" id="game_pred_button">Predict</button>
                 </form>
             </div>
             <div class="col-md-9">
@@ -42,6 +41,11 @@
                 <div class="tab-content" id="myTabContent">
                     <div class="tab-pane fade show active" id="game-prediction" role="tabpanel" aria-labelledby="game-prediction-tab">
                         <!-- Plots and tables for game prediction -->
+                        
+                        <div id="heat_map"></div>
+
+                        <div id="table_of_preds"></div>
+
                     </div>
                     <div class="tab-pane fade" id="team-parameters" role="tabpanel" aria-labelledby="team-parameters-tab">
                         <!-- Plot of latent att and def variables go here  -->
@@ -53,6 +57,7 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="//d3js.org/d3.v4.min.js"></script>
     
     <script>
         document.getElementById("gameDate").addEventListener("change", function() {
@@ -75,6 +80,101 @@
                     console.error('Failed to fetch game IDs: ', error);
                 });
         });
+
+
+        $('#game_pred_button').on('click', function(event) {
+            const date = document.getElementById("gameDate").value;
+
+            const selectedText = document.getElementById("gameSelect").selectedOptions[0].text;
+            const home_team = selectedText.split(' @ ')[1];
+            const away_team = selectedText.split(' @ ')[0];
+            
+            console.log(`date: ${date}, home_team: ${home_team}, away_team: ${away_team}`);
+            out = fetch(`/game/${date}?home_team=${home_team}&away_team=${away_team}`,
+                { method: 'GET' })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.combination_counts);
+                    create_heatmap(data.combination_counts, 'heat_map');
+                })
+        });
+
+        function create_heatmap(df, id){
+            // set the dimensions and margins of the graph
+            var margin = {top: 50, right: 50, bottom: 50, left: 50},
+            width = 450 - margin.left - margin.right,
+            height = 450 - margin.top - margin.bottom;
+
+            
+
+            // append the svg object to the body of the page
+            var svg = d3.select(`#${id}`)
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+
+            // Labels of row and columns
+            var home_team_goals_label = [... new Set(df.map(d => Number(d.home)))].sort(function (a, b) {  return a - b;  }).map(d => d.toString());
+            var away_team_goals_label = [... new Set(df.map(d => Number(d.away)))].sort(function (a, b) {  return a - b;  }).map(d => d.toString());
+
+
+            // Build X scales and axis:
+            var x = d3.scaleBand()
+                .range([ 0, width ])
+                .domain(home_team_goals_label)
+                .padding(0.01);
+            svg.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(x))
+
+            // Add X axis label
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("x", width / 2 + margin.left)
+                .attr("y", height + margin.top)
+                .text("Home Team Goals");
+
+
+
+
+            // Build Y scales and axis:
+            var y = d3.scaleBand()
+                .range([ height, 0 ])
+                .domain(away_team_goals_label)
+                .padding(0.01);
+            svg.append("g")
+                .call(d3.axisLeft(y));
+            
+            // Add Y axis label
+            svg.append("text")
+                .attr("text-anchor", "end")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left + 20)
+                .attr("x", -height / 2 + margin.top)
+                .text("Away Team Goals");
+
+
+
+            
+            // Build color scale
+            var myColor = d3.scaleLinear()
+                .range(["white", "#69b3a2"])
+                .domain([1,100])
+
+            //Read the data
+            svg.selectAll()
+                .data(df, function(d) {return d.home+':'+d.away;})
+                .enter()
+                .append("rect")
+                .attr("x", function(d) { return x(d.home) })
+                .attr("y", function(d) { return y(d.away) })
+                .attr("width", x.bandwidth() )
+                .attr("height", y.bandwidth() )
+                .style("fill", function(d) { return myColor(d.len)} )
+        }
     </script>
 </body>
 </html>
