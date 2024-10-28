@@ -1,0 +1,21 @@
+---
+title: "Untitled"
+format: html
+---
+
+
+```{python}
+import cmdstanpy
+import polars as pl
+from src.model import get_model_data, get_prediction
+```
+
+
+
+
+```{python}
+out = get_prediction('2024-10-20', 'TOR', 'BOS')
+
+out['team_params']
+
+```
