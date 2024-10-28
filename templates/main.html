@@ -94,9 +94,13 @@
                 { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
-                    console.log(data.combination_counts);
                     create_heatmap(data.combination_counts, 'heat_map');
                 })
+                .catch(error => {
+                    console.error('Failed to fetch game prediction: ', error);
+                });
+            
+            // TODO - fetch the team parameters and plot the latent att and def variables
         });
 
         function create_heatmap(df, id){
@@ -183,6 +187,10 @@
                 .attr("height", y.bandwidth() )
                 .style("fill", function(d) { return myColor(d.len)} )
         }
+
+
+        
+
     </script>
 </body>
 </html>
