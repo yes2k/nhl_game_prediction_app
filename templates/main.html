@@ -49,6 +49,8 @@
                     </div>
                     <div class="tab-pane fade" id="team-parameters" role="tabpanel" aria-labelledby="team-parameters-tab">
                         <!-- Plot of latent att and def variables go here  -->
+                        <div id="team_parameters_plot"></div>
+
                     </div>
                 </div>
             </div>
@@ -58,7 +60,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script src="//d3js.org/d3.v4.min.js"></script>
-    
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+
     <script>
         document.getElementById("gameDate").addEventListener("change", function() {
             var date = this.value;
@@ -94,7 +97,8 @@
                 { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
-                    create_heatmap(data.combination_counts, 'heat_map');
+                    create_heatmap(data.table_of_pred, 'heat_map');
+                    create_scatterplot(data.team_params, 'team_parameters_plot');
                 })
                 .catch(error => {
                     console.error('Failed to fetch game prediction: ', error);
@@ -105,91 +109,53 @@
 
         function create_heatmap(df, id){
 
-            // remove existing svg
-            if (document.contains(document.getElementById("game_pred_heatmap"))) {  
-                document.getElementById("game_pred_heatmap").remove();
-            }
-                
+            var data = [{
+                z: df.map(d => d.len),
+                x: df.map(d => d.home),
+                y: df.map(d => d.away),
+                type: 'heatmap',
+                colorscale: 'Viridis'
+            }];
 
+            var layout = {
+                title: 'Game Prediction Heatmap',
+                xaxis: {
+                    title: 'Home Team Goals'
+                },
+                yaxis: {
+                    title: 'Away Team Goals'
+                }
+            };
 
-            // set the dimensions and margins of the graph
-            var margin = {top: 50, right: 50, bottom: 50, left: 50},
-            width = 450 - margin.left - margin.right,
-            height = 450 - margin.top - margin.bottom;
-
-
-            // append the svg object to the body of the page
-            var svg = d3.select(`#${id}`)
-                .append("svg")
-                .attr("id", "game_pred_heatmap")
-                .attr("width", width + margin.left + margin.right)
-                .attr("height", height + margin.top + margin.bottom)
-                .append("g")
-                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-
-            // Labels of row and columns
-            var home_team_goals_label = [... new Set(df.map(d => Number(d.home)))].sort(function (a, b) {  return a - b;  }).map(d => d.toString());
-            var away_team_goals_label = [... new Set(df.map(d => Number(d.away)))].sort(function (a, b) {  return a - b;  }).map(d => d.toString());
-
-
-            // Build X scales and axis:
-            var x = d3.scaleBand()
-                .range([ 0, width ])
-                .domain(home_team_goals_label)
-                .padding(0.01);
-            svg.append("g")
-                .attr("transform", "translate(0," + height + ")")
-                .call(d3.axisBottom(x))
-
-            // Add X axis label
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("x", width / 2 + margin.left)
-                .attr("y", height + margin.top)
-                .text("Home Team Goals");
-
-
-
-
-            // Build Y scales and axis:
-            var y = d3.scaleBand()
-                .range([ height, 0 ])
-                .domain(away_team_goals_label)
-                .padding(0.01);
-            svg.append("g")
-                .call(d3.axisLeft(y));
-            
-            // Add Y axis label
-            svg.append("text")
-                .attr("text-anchor", "end")
-                .attr("transform", "rotate(-90)")
-                .attr("y", -margin.left + 20)
-                .attr("x", -height / 2 + margin.top)
-                .text("Away Team Goals");
-
-
-
-            
-            // Build color scale
-            var myColor = d3.scaleLinear()
-                .range(["white", "#69b3a2"])
-                .domain([1,100])
-
-            //Read the data
-            svg.selectAll()
-                .data(df, function(d) {return d.home+':'+d.away;})
-                .enter()
-                .append("rect")
-                .attr("x", function(d) { return x(d.home) })
-                .attr("y", function(d) { return y(d.away) })
-                .attr("width", x.bandwidth() )
-                .attr("height", y.bandwidth() )
-                .style("fill", function(d) { return myColor(d.len)} )
+            Plotly.newPlot(id, data, layout);
         }
 
+        function create_scatterplot(df, id){
+            var data = [{
+                x: df.filter(d => d.type === 'att').map(d => d.median),
+                y: df.filter(d => d.type === 'def').map(d => d.median),
+                mode: 'markers+text',
+                type: 'scatter',
+                text: df.filter(d => d.type === 'att').map(d => d.team),
+                textposition: 'top center',
+                textfont: {
+                    family:  'Raleway, sans-serif'
+                },
+                marker: { size: 12 }
+            }];
 
-        
+            var layout = {
+                title: 'Team Parameters',
+                xaxis: {
+                    title: 'Attacking'
+                },
+                yaxis: {
+                    title: 'Defending'
+                }
+            };
+
+            Plotly.newPlot(id, data, layout);
+        }
 
     </script>
 </body>
