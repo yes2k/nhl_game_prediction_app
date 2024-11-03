@@ -7,7 +7,7 @@ import polars as pl
 import requests
 from datetime import date, timedelta, datetime
 
-from model import fit_model, get_table_of_predictions
+from model import fit_model, get_prediction
 
 
 templates = Jinja2Templates(directory="templates")
@@ -52,31 +52,12 @@ async def root(request: Request):
 
 @app.get("/game/{date_of_pred}")
 async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
+    out = get_prediction(date_of_pred, home_team, away_team)
 
-    res = get_game_ids(date_of_pred)
-    if len(res) == 0:
-        return {
-            "error": "No games found"
-        }
-    else:
-        season = str(res[0]["season"])[:4]
-
-    max_date = (
-        datetime.strptime(date_of_pred, "%Y-%m-%d") - timedelta(days=1)
-    ).strftime("%Y-%m-%d")
-
-    print(season)
-
-    model_out = fit_model(
-        "src/model/model.stan",
-        "data/data.db",
-        home_team=home_team,
-        away_team=away_team,
-        season=season,
-        max_date=max_date
-    )
-
-    return get_table_of_predictions(model_out)
+    return { 
+        'table_of_pred': out['table_of_pred'].to_dicts(), 
+        'team_params': out['team_params'].to_dicts()
+    }
 
 
 
