@@ -28,7 +28,7 @@ parameters {
 
 model {
   mu ~ normal(0, 1);
-  is_home ~ normal(1, 1);
+  is_home ~ normal(0, 1);
   
   att ~ normal(0, att_sigma);
   att_sigma ~ normal(0, 1);
@@ -51,11 +51,13 @@ generated quantities{
     mu + att[away_new] + def[home_new]
   );
 
+
   
-//   Probability the home team scores first in OT 
+  //Probability the home team scores first in OT 
   array[N_new] real home_ot_win_prob;
   for(i in 1:N_new){
     home_ot_win_prob[i] = exp(att[home_new[i]]) / (exp(att[home_new[i]]) + exp(att[away_new[i]]));
   }
+  
 }
 
