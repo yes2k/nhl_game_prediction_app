@@ -3,7 +3,7 @@ requests
 sqlalchemy
 pandas
 pyarrow>=8.0.0
-cmdstanpy
+cmdstanpy[all]
 numpy
 fastapi[standard]
 jinja2
