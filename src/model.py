@@ -8,6 +8,8 @@ def get_all_teams(date: str) -> pl.DataFrame:
     """
         date has to be formatted like YYYY-MM-DD
     """
+
+    # TODO: figure out a better way to get all the teams for a specific season
     url = f"https://api-web.nhle.com/v1/standings/{date}"
 
     try:
@@ -43,8 +45,6 @@ def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
      # Create team_id_map
     team_id_map = get_all_teams(max_date)
 
-    print(out)
-
     # Join out with team_id_map for home and away teams
     out = (
         out
@@ -63,7 +63,7 @@ def get_model_data(path_to_db: str, season: str, max_date: str) -> dict[str, ]:
     # Create the final list
     result = {
         "model_df": out,
-        "team_id_map": team_id_map
+        "team_id_map": team_id_map.with_columns(pl.col("id").cast(pl.Int32))
     }
 
     return result
@@ -92,11 +92,12 @@ def fit_model(
         "N_new": 1
     }
 
-    model_fit = model.sample(datalist, parallel_chains=4)
+    model_fit = model.sample(datalist, parallel_chains=4, show_console=True)
 
     return ({
         "model_fit": model_fit,
-        "datalist": datalist
+        "datalist": datalist,
+        'team_id_map': result["team_id_map"]
     })
 
 
@@ -136,11 +137,9 @@ def get_table_of_predictions(model_dict) -> pl.DataFrame:
     )
 
     prob_home_team_ot_win = model_dict["model_fit"].stan_variable("home_ot_win_prob")
-    combination_counts = pred_df.group_by(["home", "away"]).len().sort("len", descending=True)
+    combination_counts = pred_df.group_by(["home", "away"]).len().sort(["home", "away"])
 
-    return {
-        "combination_counts": combination_counts.to_dicts()
-    }
+    return {'combination_counts': combination_counts}
 
 
 
@@ -169,7 +168,22 @@ def get_prediction(date_of_pred: str, home_team: str, away_team: str) -> pl.Data
         max_date=max_date.strftime("%Y-%m-%d")
     )
 
-    return {'res': get_table_of_predictions(model_out)}
+
+    return {
+        'table_of_pred': get_table_of_predictions(model_out)['combination_counts'],
+        'team_params': (
+            get_team_latent_params(model_out)
+            .join(
+                model_out['team_id_map'],
+                right_on="id",
+                left_on="team_id",
+                how="left"
+            )
+            .drop('team_id')
+            .sort("team")
+            .rename({'5%': 'lower_5p', '50%': 'median', '95%': 'upper_95p'})
+        )
+    }
 
 
 def get_game_ids(date: str):
@@ -194,11 +208,3 @@ def get_game_ids(date: str):
         })
 
     return {'res': out}
-
-
-# print(get_game_ids("2024-10-12"))
-# print(get_prediction(
-#     "2024-03-10",
-#     "TOR",
-#     "MTL"
-# ))
