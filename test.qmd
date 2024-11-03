@@ -7,15 +7,173 @@ format: html
 ```{python}
 import cmdstanpy
 import polars as pl
+import sqlite3
+import requests
+from datetime import date, datetime, timedelta 
 from src.model import get_model_data, get_prediction
 ```
 
 
+# Getting log loss for a season
 
 
 ```{python}
-out = get_prediction('2024-10-20', 'TOR', 'BOS')
+# Getting which team won
+def getting_team_wins(date: str):
+    def get_goals_single_game(x, d):
+        out = {}
+        out["date"] = d
+        out["id"] = x["id"]
 
-out['team_params']
+        out["away_team"] = x["awayTeam"]["abbrev"]
+        out["home_team"] = x["homeTeam"]["abbrev"]
 
+        reg_goals = x["goals"]
+
+        if len(reg_goals) != 0:
+            out["home_goals"] = reg_goals[-1]["homeScore"]
+            out["away_goals"] = reg_goals[-1]["awayScore"]
+        else:
+            out["home_goals"] = 0
+            out["away_goals"] = 0
+
+        return out
+
+    url = f"https://api-web.nhle.com/v1/score/{date}"
+    try:
+        data = requests.get(url).json()
+    except:
+        print("url not found")
+
+    out = []
+    for game in data["games"]:
+        if game["gameType"] == 2 and 'goals' in game.keys():
+            out.append(get_goals_single_game(game, date))
+    
+    return out
+
+
+def get_all_team_wins(start_date: str):
+    s_date = date(int(start_date[0:4]), int(start_date[5:7]), int(start_date[8:10]))
+    end_date = date.today() - timedelta(days = 1)
+    date_range = pl.date_range(s_date, end_date, eager=True).cast(pl.String).alias("date").to_list()
+
+    out = []
+    for d in date_range:
+        print(d)
+        out.append(pl.DataFrame(getting_team_wins(d)))
+
+    winning_teams = (
+        pl.concat(out, how = "diagonal")
+        .with_columns(
+            pl.when(pl.col("home_goals") > pl.col("away_goals"))
+            .then("home_team").otherwise("away_team").alias("winning_team"),
+            pl.col("id").cast(pl.String)
+        )
+        .select(["date", "id", "winning_team"])
+    )
+
+    return(winning_teams)
+
+winning_team = get_all_team_wins("2023-10-04")
 ```
+
+
+
+```{python}
+con = sqlite3.connect("data/data.db") 
+query = f"""
+    SELECT date, CAST(id as text) game_id, away_team, 
+            home_team, home_goals, away_goals
+    FROM goal_data
+    WHERE substr(game_id, 1, 4) == "2023"
+    ORDER BY game_id
+"""
+out = (
+    pl.read_database(query=query, connection=con)
+)
+
+model = cmdstanpy.CmdStanModel(stan_file = "src/model/model.stan")
+
+pred_df = []
+for d in out["date"].unique().sort().to_list()[10:]:
+    print(d)
+    res = get_model_data("data/data.db", "2023", d)
+    res_minus_1 = res["model_df"].filter(pl.col("date") < d)
+    to_pred_df = res["model_df"].filter(pl.col("date") == d)
+
+    datalist = {
+        "N": res_minus_1.shape[0],
+        "n_teams": res["team_id_map"].shape[0],
+        "home_teams": res_minus_1["home_id"].to_list(),
+        "away_teams": res_minus_1["away_id"].to_list(),
+        "home_goals": res_minus_1["home_goals"].to_list(),
+        "away_goals": res_minus_1["away_goals"].to_list(),
+        "home_new": to_pred_df["home_id"].to_list(),
+        "away_new": to_pred_df["away_id"].to_list(),
+        "N_new": to_pred_df.shape[0]
+    }
+
+    model_fit = model.sample(datalist, parallel_chains=4, show_console=False)
+
+    home_team_pred_goals = pl.DataFrame(model_fit.stan_variable("pred_home_goals"))
+    away_team_pred_goals = pl.DataFrame(model_fit.stan_variable("pred_away_goals"))
+    home_ot_win_prob = pl.DataFrame(model_fit.stan_variable("home_ot_win_prob"))
+
+    prob_home_team_win = []
+    for i in range(home_ot_win_prob.shape[1]):
+        out = (
+            pl.concat([
+                home_team_pred_goals.select(f"column_{i}").rename({f"column_{i}": "pred_home_goals"}),
+                away_team_pred_goals.select(f"column_{i}").rename({f"column_{i}": "pred_away_goals"}),
+                home_ot_win_prob.select(f"column_{i}").rename({f"column_{i}": "home_to_win_prob"})
+            ], how="horizontal")
+            .with_columns(
+                pl.when(pl.col("pred_home_goals") > pl.col("pred_away_goals")).then(1)
+                .when(pl.col("pred_home_goals") < pl.col("pred_away_goals")).then(0)
+                .when(pl.col("pred_home_goals") == pl.col("pred_away_goals"))
+                .then((pl.col("home_to_win_prob") > 0.5).cast(pl.Int32)).alias("home_team_win")
+            )
+        )
+        prob_home_team_win.append(out["home_team_win"].mean())
+
+    to_pred_df = to_pred_df.with_columns(pl.Series(prob_home_team_win).alias("prob_home_team_win"))
+    pred_df.append((
+        to_pred_df
+        .with_columns(pl.Series(prob_home_team_win).alias("prob_home_team_win"))
+        .select(["date", "game_id", "home_team", "away_team", "prob_home_team_win"])
+    ))
+
+pred_df = pl.concat(pred_df, how = "vertical_relaxed")
+```
+
+
+
+```{python}
+
+
+test = (
+    pred_df
+    .join(
+        winning_team,
+        how = "left",
+        left_on = ["date", "game_id"],
+        right_on = ["date", "id"]
+    )
+    .with_columns(
+        pl.when(pl.col("winning_team") == pl.col("home_team"))
+        .then(pl.col("prob_home_team_win").log(base=2))
+        .otherwise((pl.lit(1) - pl.col("prob_home_team_win")).log(base=2)).alias("log_loss")
+    )
+)
+
+-1 * test["log_loss"].mean()
+
+
+
+
+# accuracy
+```
+
+# Simulate the rest of the season
+
