@@ -43,20 +43,24 @@ model {
 }
 
 generated quantities{
-  array[N_new] real pred_home_goals = poisson_log_rng(
-    mu + is_home + att[home_new] + def[away_new]
-  );
 
-  array[N_new] real pred_away_goals = poisson_log_rng(
-    mu + att[away_new] + def[home_new]
-  );
+  array[N_new] real home_rate;
+  for (i in 1:N_new) {
+    home_rate[i] = mu + is_home + att[home_new[i]] + def[away_new[i]];
+  }
 
+  array[N_new] real away_rate;  
+  for (i in 1:N_new) {
+    away_rate[i] = mu + att[away_new[i]] + def[home_new[i]];
+  }
 
+  array[N_new] real pred_home_goals = poisson_log_rng(home_rate);
+  array[N_new] real pred_away_goals = poisson_log_rng(away_rate);
   
   //Probability the home team scores first in OT 
   array[N_new] real home_ot_win_prob;
   for(i in 1:N_new){
-    home_ot_win_prob[i] = exp(att[home_new[i]]) / (exp(att[home_new[i]]) + exp(att[away_new[i]]));
+    home_ot_win_prob[i] = exp(home_rate[i]) / (exp(home_rate[i]) + exp(away_rate[i]));
   }
   
 }
