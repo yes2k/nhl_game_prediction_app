@@ -97,17 +97,16 @@
                 { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
-                    create_heatmap(data.table_of_pred, 'heat_map');
+                    console.log(data.table_of_pred)
+                    create_heatmap(data.table_of_pred, 'heat_map', home_team, away_team);
                     create_scatterplot(data.team_params, 'team_parameters_plot');
                 })
                 .catch(error => {
                     console.error('Failed to fetch game prediction: ', error);
-                });
-            
-            // TODO - fetch the team parameters and plot the latent att and def variables
+                });            
         });
 
-        function create_heatmap(df, id){
+        function create_heatmap(df, id, home_team_name, away_team_name){
 
             var data = [{
                 z: df.map(d => d.len),
@@ -120,10 +119,10 @@
             var layout = {
                 title: 'Game Prediction Heatmap',
                 xaxis: {
-                    title: 'Home Team Goals'
+                    title: `${home_team_name} Goals`
                 },
                 yaxis: {
-                    title: 'Away Team Goals'
+                    title: `${away_team_name} Goals`
                 }
             };
 
