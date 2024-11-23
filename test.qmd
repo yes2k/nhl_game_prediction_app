@@ -75,7 +75,7 @@ def get_all_team_wins(start_date: str):
 
     return(winning_teams)
 
-winning_team = get_all_team_wins("2023-10-04")
+winning_team = get_all_team_wins("2023-10-10")
 ```
 
 
@@ -96,7 +96,7 @@ out = (
 model = cmdstanpy.CmdStanModel(stan_file = "src/model/model.stan")
 
 pred_df = []
-for d in out["date"].unique().sort().to_list()[10:]:
+for d in out["date"].unique().sort().to_list()[2:]:
     print(d)
     res = get_model_data("data/data.db", "2023", d)
     res_minus_1 = res["model_df"].filter(pl.col("date") < d)
@@ -163,16 +163,16 @@ test = (
     .with_columns(
         pl.when(pl.col("winning_team") == pl.col("home_team"))
         .then(pl.col("prob_home_team_win").log(base=2))
-        .otherwise((pl.lit(1) - pl.col("prob_home_team_win")).log(base=2)).alias("log_loss")
+        .otherwise((pl.lit(1) - pl.col("prob_home_team_win")).log(base=2)).alias("log_loss"),
+        pl.when(pl.col("prob_home_team_win") > 0.5).then("home_team").otherwise("away_team").alias("pred_win_team")
     )
 )
 
 -1 * test["log_loss"].mean()
 
-
-
-
 # accuracy
+(test["pred_win_team"] == test["winning_team"]).mean()
+
 ```
 
 # Simulate the rest of the season
