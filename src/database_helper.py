@@ -19,7 +19,7 @@ def get_reg_goals(date: str):
         out["home_team"] = x["homeTeam"]["abbrev"]
 
         reg_goals = list(filter(lambda x: x["period"] <= 3, x["goals"]))
-        # reg_goals = x["goals"]
+        all_goals = x["goals"]
 
         if len(reg_goals) != 0:
             out["home_goals"] = reg_goals[-1]["homeScore"]
@@ -27,6 +27,12 @@ def get_reg_goals(date: str):
         else:
             out["home_goals"] = 0
             out["away_goals"] = 0
+        
+        if all_goals[-1]["homeScore"] > all_goals[-1]["awayScore"]:
+            out["winning_team"] = out["home_team"]
+        else:
+            out["winning_team"] = out["away_team"]
+
 
         return out
 
