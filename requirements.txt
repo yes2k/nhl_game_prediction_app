@@ -7,3 +7,4 @@ cmdstanpy[all]
 numpy
 fastapi[standard]
 jinja2
+seaborn
