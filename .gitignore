@@ -2,3 +2,4 @@
 /.venv2
 *.db
 *.pyc
+/.venv
