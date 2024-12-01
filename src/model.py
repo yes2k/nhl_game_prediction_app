@@ -138,7 +138,10 @@ def get_table_of_predictions(model_dict) -> pl.DataFrame:
         .rename({"home_new_draw": "home", "away_new_draw": "away"})
     )
 
-    combination_counts = pred_df.group_by(["home", "away"]).len().sort(["home", "away"])
+    combination_counts = (
+        pred_df.group_by(["home", "away"]).len().sort(["home", "away"])
+        .with_columns((pl.col("len") / pl.col("len").sum()) * 100)
+    )
 
     # Getting probability of home team win
     prob_home_team_win = (
@@ -151,7 +154,7 @@ def get_table_of_predictions(model_dict) -> pl.DataFrame:
         )["home_team_win"].mean()
     )
 
-    return {'combination_counts': combination_counts, 'prob_home_team_win': prob_home_team_win}
+    return {'combination_counts': combination_counts, 'prob_home_team_win': prob_home_team_win * 100}
 
 
 
