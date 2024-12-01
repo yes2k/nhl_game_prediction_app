@@ -56,7 +56,8 @@ async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
 
     return { 
         'table_of_pred': out['table_of_pred'].to_dicts(), 
-        'team_params': out['team_params'].to_dicts()
+        'team_params': out['team_params'].to_dicts(),
+        'home_team_win_prob': out["prob_home_team_win"]
     }
 
 
