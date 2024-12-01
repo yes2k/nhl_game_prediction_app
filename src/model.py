@@ -127,19 +127,31 @@ def get_team_latent_params(model_dict) -> pl.DataFrame:
 def get_table_of_predictions(model_dict) -> pl.DataFrame:
     home_new_draw = model_dict["model_fit"].stan_variable("pred_home_goals")
     away_new_draw = model_dict["model_fit"].stan_variable("pred_away_goals")
+    prob_home_team_ot_win = model_dict["model_fit"].stan_variable("home_ot_win_prob")
 
     pred_df = (
         pl.DataFrame({
             "home_new_draw": home_new_draw,
-            "away_new_draw": away_new_draw
-        }).explode("home_new_draw", "away_new_draw")
+            "away_new_draw": away_new_draw,
+            "prob_home_team_ot_win": prob_home_team_ot_win
+        }).explode("home_new_draw", "away_new_draw", "prob_home_team_ot_win")
         .rename({"home_new_draw": "home", "away_new_draw": "away"})
     )
 
-    prob_home_team_ot_win = model_dict["model_fit"].stan_variable("home_ot_win_prob")
     combination_counts = pred_df.group_by(["home", "away"]).len().sort(["home", "away"])
 
-    return {'combination_counts': combination_counts}
+    # Getting probability of home team win
+    prob_home_team_win = (
+        pred_df
+        .with_columns(
+            pl.when(pl.col("home") > pl.col("away")).then(1)
+            .when(pl.col("home") < pl.col("away")).then(0)
+            .when(pl.col("home") == pl.col("away"))
+            .then((pl.col("prob_home_team_ot_win") > 0.5).cast(pl.Int32)).alias("home_team_win")
+        )["home_team_win"].mean()
+    )
+
+    return {'combination_counts': combination_counts, 'prob_home_team_win': prob_home_team_win}
 
 
 
@@ -168,9 +180,11 @@ def get_prediction(date_of_pred: str, home_team: str, away_team: str) -> pl.Data
         max_date=max_date.strftime("%Y-%m-%d")
     )
 
+    pred = get_table_of_predictions(model_out)
 
     return {
-        'table_of_pred': get_table_of_predictions(model_out)['combination_counts'],
+        'table_of_pred': pred['combination_counts'],
+        'prob_home_team_win': pred['prob_home_team_win'],
         'team_params': (
             get_team_latent_params(model_out)
             .join(
@@ -184,6 +198,41 @@ def get_prediction(date_of_pred: str, home_team: str, away_team: str) -> pl.Data
             .rename({'5%': 'lower_5p', '50%': 'median', '95%': 'upper_95p'})
         )
     }
+
+
+
+def get_season_log_loss(season: str) -> pl.DataFrame:
+    if season not in ['2023', '2024']: 
+        raise ValueError(f'{season} is not avaliable')
+
+    con = sqlite3.connect("data/data.db") 
+    query = f"""
+        SELECT date, CAST(id as text) game_id, away_team, 
+                home_team, home_goals, away_goals, winning_team
+        FROM goal_data
+        WHERE substr(game_id, 1, 4) == '{season}'
+        ORDER BY game_id
+    """
+    query_df = (
+        pl.read_database(query=query, connection=con)
+    )
+
+
+    out = (
+        query_df
+        .slice(1, query_df.height - 1)
+        .with_columns(
+            pl.struct("date", "home_team", "away_team")
+            .map_elements(lambda x: get_prediction(x["date"], x["home_team"], x["away_team"])["prob_home_team_win"], 
+                            return_dtype = pl.Float64)
+            .alias("prob_home_team_win")
+        )
+    )
+
+    return out
+
+
+
 
 
 def get_game_ids(date: str):
