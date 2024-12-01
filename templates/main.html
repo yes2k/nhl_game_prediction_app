@@ -41,8 +41,10 @@
                 <div class="tab-content" id="myTabContent">
                     <div class="tab-pane fade show active" id="game-prediction" role="tabpanel" aria-labelledby="game-prediction-tab">
                         <!-- Plots and tables for game prediction -->
+                        <div id="spinner" class="spinner-border text-primary" role="status" style="display: none;">
+                            <span class="sr-only">Loading...</span>
+                        </div>
                         <div id="heat_map"></div>
-                        <div id="table_of_preds"></div>
                         <div id="home_team_win_prob"></div>
 
                     </div>
@@ -60,7 +62,6 @@
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <script src="//d3js.org/d3.v4.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 
     <script>
@@ -85,8 +86,10 @@
                 });
         });
 
-
         $('#game_pred_button').on('click', function(event) {
+
+            // Show spinner
+            document.getElementById("spinner").style.display = 'block';
             const date = document.getElementById("gameDate").value;
 
             const selectedText = document.getElementById("gameSelect").selectedOptions[0].text;
@@ -94,16 +97,25 @@
             const away_team = selectedText.split(' @ ')[0];
             
             console.log(`date: ${date}, home_team: ${home_team}, away_team: ${away_team}`);
-            out = fetch(`/game/${date}?home_team=${home_team}&away_team=${away_team}`,
+            fetch(`/game/${date}?home_team=${home_team}&away_team=${away_team}`,
                 { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
                     console.log(data.table_of_pred)
                     create_heatmap(data.table_of_pred, 'heat_map', home_team, away_team);
                     create_scatterplot(data.team_params, 'team_parameters_plot');
+                    console.log(data.home_team_win_prob)
+                    document.getElementById("home_team_win_prob").innerText = `${home_team} win probability: ${data.home_team_win_prob}%`
+
+
+                    // Hide spinner
+                    document.getElementById("spinner").style.display = 'none';
                 })
                 .catch(error => {
                     console.error('Failed to fetch game prediction: ', error);
+
+                    // Hide spinner
+                    document.getElementById("spinner").style.display = 'none';
                 });            
         });
 
@@ -124,6 +136,13 @@
                 },
                 yaxis: {
                     title: `${away_team_name} Goals`
+                },
+                autosize: true,
+                width: null,
+                height: null,
+                aspectratio: {
+                    x: 1,
+                    y: 1
                 }
             };
 
