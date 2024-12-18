@@ -100,8 +100,13 @@ def update_database(path_to_db: str) -> None:
 
     out = []
     for d in date_range:
+        print(d)
         out.append(pl.DataFrame(get_reg_goals(d)))
     
+    if len(out) == 0:
+        print("No new data to update")
+        return
+
     df = pl.concat(out, how = "diagonal")
     df.write_database(
         table_name = "goal_data",
