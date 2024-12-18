@@ -13,6 +13,9 @@ from datetime import date, datetime, timedelta
 import numpy as np
 from src.model import get_model_data, get_prediction
 import seaborn as sns
+import pymc as pm
+import arviz as az
+
 # import src.bt_model as bt_model
 
 ```
@@ -77,7 +80,7 @@ query = f"""
     SELECT date, CAST(id as text) game_id, away_team, 
             home_team, home_goals, away_goals, winning_team
     FROM goal_data
-    WHERE substr(game_id, 1, 4) == "2023"
+    WHERE substr(game_id, 1, 4) == "2024"
     ORDER BY game_id
 """
 query_df = (
@@ -89,7 +92,7 @@ model = cmdstanpy.CmdStanModel(stan_file = "src/model/model.stan")
 pred_df = []
 for d in query_df["date"].unique().sort().to_list()[2:]:
     print(d)
-    res = get_model_data("data/data.db", "2023", d)
+    res = get_model_data("data/data.db", "2024", d)
     res_minus_1 = res["model_df"].filter(pl.col("date") < d)
     to_pred_df = res["model_df"].filter(pl.col("date") == d)
 
@@ -181,3 +184,59 @@ sns.lineplot(
 
 ## Simulate the rest of the season
 
+
+
+## Testing out model in pymc
+
+```{python}
+df = get_model_data("data/data.db", "2024", "2024-11-21")
+
+coords = {
+    'team': df["team_id_map"]["team"].to_list()
+}
+
+home_goals = df["model_df"]["home_goals"].to_numpy()
+away_goals = df["model_df"]["away_goals"].to_numpy()
+home_teams_id = df["model_df"]["home_id"].to_numpy()
+away_teams_id = df["model_df"]["away_id"].to_numpy()
+
+with pm.Model(coords = coords) as model:
+    # Define the parameters
+    mu = pm.Normal('mu', mu=0, sigma=1)
+    is_home = pm.Normal('is_home', mu=0, sigma=1)
+    
+    att_sigma = pm.HalfNormal('att_sigma', sigma=1)
+    def_sigma = pm.HalfNormal('def_sigma', sigma=1)
+    
+    att = pm.Normal('att', mu=0, sigma=att_sigma, dims = 'team')
+    def_ = pm.Normal('def', mu=0, sigma=def_sigma, dims = 'team')
+    
+    # Define the likelihood
+    home_goals_obs = pm.Poisson(
+        'home_goals_obs', 
+        mu=pm.math.exp(mu + is_home + att[home_teams_id - 1] + def_[away_teams_id - 1]), 
+        observed=home_goals
+    )
+    away_goals_obs = pm.Poisson(
+        'away_goals_obs', 
+        mu=pm.math.exp(mu + att[away_teams_id - 1] + def_[home_teams_id - 1]), 
+        observed=away_goals
+    )
+    
+    # Generated quantities
+    # home_rate = pm.Deterministic('home_rate', mu + is_home + att[home_new - 1] + def_[away_new - 1])
+    # away_rate = pm.Deterministic('away_rate', mu + att[away_new - 1] + def_[home_new - 1])
+    
+    # pred_home_goals = pm.Poisson('pred_home_goals', mu=pm.math.exp(home_rate), shape=N_new)
+    # pred_away_goals = pm.Poisson('pred_away_goals', mu=pm.math.exp(away_rate), shape=N_new)
+    
+    # home_ot_win_prob = pm.Deterministic('home_ot_win_prob', 
+    #                                     pm.math.exp(home_rate) / (pm.math.exp(home_rate) + pm.math.exp(away_rate)))
+
+    idata = pm.sample(1000, tune=1000, cores=4)
+```
+
+
+```{python}
+az.summary(idata)
+```
