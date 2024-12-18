@@ -8,3 +8,6 @@ numpy
 fastapi[standard]
 jinja2
 seaborn
+numpyro
+pymc
+nutpie
