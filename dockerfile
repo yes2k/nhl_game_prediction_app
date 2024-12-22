@@ -1,3 +1,5 @@
+# cmdstan installation porttion of this dockerfile "inspired" by this: https://github.com/storopoli/cmdstanpy-docker/
+
 FROM python:3.12
 
 # env vars
