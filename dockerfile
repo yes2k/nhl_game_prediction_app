@@ -1,19 +1,39 @@
 FROM python:3.12
 
+# env vars
+ENV CSVER=2.35.0
+ENV CMDSTAN=/opt/cmdstan-$CSVER
+
+
 COPY /src /src
 COPY /data /data
 COPY /templates /templates
 COPY requirements.txt requirements.txt
 
-RUN apt-get update -y
-RUN pip install --upgrade --no-cache-dir -r requirements.txt
+# install openMPI and MPI's mpicxx binary
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl libopenmpi-dev mpi-default-dev
 
-# Install CmdStan
-RUN wget https://github.com/stan-dev/cmdstan/releases/download/v2.36.0/cmdstan-2.36.0.tar.gz && \
-    tar -xzf cmdstan-2.36.0.tar.gz && \
-    cd cmdstan-2.36.0 && \
-    make build -j4 && \
-    mv /cmdstan-2.36.0 /opt/cmdstan
+
+
+# set workdir for /opt/cmdstan-CSVER
+WORKDIR /opt/
+
+# download and extract cmdstan based on CSVER from github
+RUN curl -OL https://github.com/stan-dev/cmdstan/releases/download/v$CSVER/cmdstan-$CSVER.tar.gz \
+  && tar xzf cmdstan-$CSVER.tar.gz \
+  && rm -rf cmdstan-$CSVER.tar.gz
+
+# copy the make/local to CMDSTAN dir
+COPY make/local $CMDSTAN/make/local
+
+# build cmdstan using 2 threads
+RUN cd cmdstan-$CSVER \
+  && make -j2 build examples/bernoulli/bernoulli
+
+WORKDIR /
+
+# RUN pip install --upgrade --no-cache-dir -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Create Database 
 RUN ["python", "src/database_helper.py", "--type", "update", "--pathtodb", "data"]
