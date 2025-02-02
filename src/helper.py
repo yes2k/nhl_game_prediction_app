@@ -47,3 +47,71 @@ def get_game_ids(date: str):
         })
 
     return {'res': out}
+
+
+def get_current_standings() -> pl.DataFrame:
+    url = f"https://api-web.nhle.com/v1/standings/now"
+
+    try:
+        data = requests.get(url).json()
+    except:
+        print("url not found")
+
+    out = (
+        pl.DataFrame({
+            "team": list(map(lambda x: x["teamAbbrev"]["default"], data["standings"])),
+            "wins": list(map(lambda x: x["wins"], data["standings"])),
+            "losses": list(map(lambda x: x["losses"], data["standings"])),
+            "ot_losses": list(map(lambda x: x["otLosses"], data["standings"])),
+            "points": list(map(lambda x: x["points"], data["standings"]))
+        })
+        .with_columns(
+            pl.arange(1, pl.len()+1).alias("id")
+        )
+    )
+
+
+    return out
+
+
+def get_scheduled_games(first_date: str, last_date: str) -> pl.DataFrame:
+    # dates should be formatted as YYYY-MM-DD
+
+    date_range = (
+        pl
+        .date_range(
+            datetime.strptime(first_date, "%Y-%m-%d"), 
+            datetime.strptime(last_date, "%Y-%m-%d"), 
+            eager=True
+        )
+        .cast(pl.String)
+        .alias("date").to_list()
+    )
+
+    out = {
+        "date": [],
+        "id": [],
+        "home_team": [],
+        "away_team": []
+    }
+
+    for d in date_range:
+        print(d)
+        url = f"https://api-web.nhle.com/v1/schedule/{d}"
+        try:
+            data = requests.get(url).json()
+        except:
+            print("url not found")
+        
+        for game_date in data["gameWeek"]:
+            for g in game_date["games"]:
+                out["date"].append(d)
+                out["id"].append(g["id"])
+                out["away_team"].append(g["awayTeam"]["abbrev"])
+                out["home_team"].append(g["homeTeam"]["abbrev"])
+    
+    return pl.DataFrame(out)
+
+
+
+
