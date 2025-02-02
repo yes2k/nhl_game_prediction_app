@@ -101,7 +101,7 @@
                 { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
-                    console.log(data.table_of_pred)
+                    console.log(data.team_params)
                     create_heatmap(data.table_of_pred, 'heat_map', home_team, away_team);
                     create_scatterplot(data.team_params, 'team_parameters_plot');
                     console.log(data.home_team_win_prob)
@@ -151,8 +151,8 @@
 
         function create_scatterplot(df, id){
             var data = [{
-                x: df.filter(d => d.type === 'att').map(d => d.median),
-                y: df.filter(d => d.type === 'def').map(d => d.median),
+                x: df.filter(d => d.type === 'att').map(d => d["50%"]),
+                y: df.filter(d => d.type === 'def').map(d => d["50%"]),
                 mode: 'markers+text',
                 type: 'scatter',
                 text: df.filter(d => d.type === 'att').map(d => d.team),
