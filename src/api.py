@@ -39,10 +39,12 @@ async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
 
     out = Mod.get_prediction(date_of_pred, season, home_team, away_team)
 
+    print(out)
+
     return { 
         'table_of_pred': out.pred_table.to_dicts(), 
         'team_params': out.team_params.to_dicts(),
-        'home_team_win_prob': out.team_params
+        'home_team_win_prob': out.prob_home_team_win * 100
     }
 
 
@@ -55,4 +57,4 @@ async def get_team_params(team_id: int):
 
 @app.get("/game_ids/{date}")
 async def get_all_games(date: str):
-    return helper.get_game_ids(date)
+    return helper.get_game_ids(date)["res"]

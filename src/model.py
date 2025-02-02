@@ -15,7 +15,7 @@ class DataModel:
 @dataclass
 class ModelResult:
     model: cmdstanpy.CmdStanMCMC 
-    training_data: dict[str, ]
+    model_data: DataModel
 
 @dataclass
 class PredResult:
@@ -85,10 +85,12 @@ class GamePredModel:
             team_id_map.with_columns(pl.col("id").cast(pl.Int32))   
         )
 
+    def __fit_model(self, max_date: str, season: str, home_team: str, away_team: str) -> ModelResult:
+        # Loading stan model from file
+        model = cmdstanpy.CmdStanModel(stan_file = self.path_to_model)
 
-    def __get_model_list(self, max_date: str, season: str, home_team: str, away_team: str) -> dict[str, ]:
         dat = self.__get_model_data(max_date, season)
-        return {
+        training_data = {
             "N": dat.model_df.shape[0],
             "n_teams": dat.team_id_map.shape[0],
             "home_teams": dat.model_df["home_id"].to_list(),
@@ -100,23 +102,15 @@ class GamePredModel:
             "N_new": 1
         }
 
-
-    def __fit_model(self, max_date: str, season: str, home_team: str, away_team: str) -> ModelResult:
-        # Loading stan model from file
-        model = cmdstanpy.CmdStanModel(stan_file = self.path_to_model)
-
-        # Getting data to be used from the model
-        training_data = self.__get_model_list(max_date, season, home_team, away_team)
-
         # Fitting model
         model_fit = model.sample(training_data, parallel_chains=4)
 
-        return ModelResult(model_fit, training_data)
+        return ModelResult(model_fit, dat)
 
 
-    def __get_params(self, model: ModelResult, nteams: int) -> pl.DataFrame:
-        att_var = [f"att[{i}]" for i in range(1, nteams+1)]
-        def_var = [f"def[{i}]" for i in range(1, nteams+1)]
+    def __get_params(self, model: ModelResult, team_id_map: pl.DataFrame) -> pl.DataFrame:
+        att_var = [f"att[{i}]" for i in range(1, team_id_map.shape[0] + 1)]
+        def_var = [f"def[{i}]" for i in range(1, team_id_map.shape[0] + 1)]
 
         team_latent_params = (
             pl.concat([
@@ -132,6 +126,7 @@ class GamePredModel:
             .with_columns(pl.col("var").str.extract(r"(\d+)").cast(pl.Int32).alias("team_id"))
             .with_columns(pl.col("var").str.extract(r"(att|def)").alias("type"))
             .drop("var")
+            .left_join(team_id_map, left_on="team_id", right_on="id")
         )
 
         return team_latent_params
@@ -172,7 +167,7 @@ class GamePredModel:
         )
 
         # Get team latent params
-        latent_team_params = self.__get_params(model, model.training_data["n_teams"])
+        latent_team_params = self.__get_params(model, model.model_data.team_id_map)
 
         return PredResult(
             combination_counts,
