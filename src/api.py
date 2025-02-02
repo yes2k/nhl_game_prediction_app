@@ -7,38 +7,15 @@ import polars as pl
 import requests
 from datetime import date, timedelta, datetime
 
-from model import fit_model, get_prediction
-
+import model as model
+import helper as helper
 
 templates = Jinja2Templates(directory="templates")
 
-
-def get_game_ids(date: str):
-    url = f"https://api-web.nhle.com/v1/schedule/{date}"
-    
-    try:
-        data = requests.get(url).json()
-    except Exception as e:
-        print(e)
-        return [{}]
-
-    games = data['gameWeek'][0]['games']
-
-    out = []
-    for game in games:
-        out.append({
-            "game_id": game['id'],
-            "date": date,
-            "home_team": game['homeTeam']['abbrev'],
-            "away_team": game['awayTeam']['abbrev'],
-            "season": game['season']
-        })
-
-    return out
-
-
-
-
+Mod = model.GamePredModel(
+    "data/data.db",
+    "src/model/model.stan"
+)
 
 
 
@@ -52,12 +29,20 @@ async def root(request: Request):
 
 @app.get("/game/{date_of_pred}")
 async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
-    out = get_prediction(date_of_pred, home_team, away_team)
+    res = helper.get_game_ids(date_of_pred)
+    if len(res) == 0:
+        return {
+            "error": "No games found"
+        }
+    else:
+        season = str(res['res'][0]["season"])[:4]
+
+    out = Mod.get_prediction(date_of_pred, season, home_team, away_team)
 
     return { 
-        'table_of_pred': out['table_of_pred'].to_dicts(), 
-        'team_params': out['team_params'].to_dicts(),
-        'home_team_win_prob': out["prob_home_team_win"]
+        'table_of_pred': out.pred_table.to_dicts(), 
+        'team_params': out.team_params.to_dicts(),
+        'home_team_win_prob': out.team_params
     }
 
 
@@ -70,4 +55,4 @@ async def get_team_params(team_id: int):
 
 @app.get("/game_ids/{date}")
 async def get_all_games(date: str):
-    return get_game_ids(date)
+    return helper.get_game_ids(date)
