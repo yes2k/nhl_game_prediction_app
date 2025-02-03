@@ -5,7 +5,7 @@ import sqlite3
 import requests
 from dataclasses import dataclass
 
-import helper as helper
+import src.helper as helper
 
 @dataclass
 class DataModel:
@@ -29,25 +29,6 @@ class GamePredModel:
     def __init__(self, path_to_db, path_to_model):
         self.path_to_db = path_to_db
         self.path_to_model = path_to_model
-
-
-    def __get_start_and_end_of_season(self) -> tuple[str, str]:
-        url = "https://api.nhle.com/stats/rest/en/season"
-        
-        try:
-            data = requests.get(url).json()
-        except Exception as e:
-            print(e)
-            return None
-
-        for seasons in data:
-            if seasons[id] == self.season:
-                start_date = seasons[id]['regularSeasonStartDate']
-                end_date = seasons[id]['regularSeasonEndDate']
-            return start_date, end_date
-        else:
-            print("No season data found")
-            return None
 
 
     def __get_model_data(self, max_date: str, season: str) -> DataModel:
@@ -100,6 +81,35 @@ class GamePredModel:
             "home_new": dat.team_id_map.filter(pl.col("team") == home_team)["id"].to_list(),
             "away_new": dat.team_id_map.filter(pl.col("team") == away_team)["id"].to_list(),
             "N_new": 1
+        }
+
+        # Fitting model
+        model_fit = model.sample(training_data, parallel_chains=4)
+
+        return ModelResult(model_fit, dat)
+
+
+    def __fit_model_multiple_preds(self, max_date: str, season: str, home_teams: list[str], away_teams: list[str]) -> ModelResult:
+        if len(home_teams) != len(away_teams):
+            raise IndexError("len(home_teams) != len(away_teams)") 
+
+
+        # Loading stan model from file
+        model = cmdstanpy.CmdStanModel(stan_file = self.path_to_model)
+
+        dat = self.__get_model_data(max_date, season)
+        training_data = {
+            "N": dat.model_df.shape[0], 
+            "n_teams": dat.team_id_map.shape[0],
+            "home_teams": dat.model_df["home_id"].to_list(),
+            "away_teams": dat.model_df["away_id"].to_list(),
+            "home_goals": dat.model_df["home_goals"].to_list(),
+            "away_goals": dat.model_df["away_goals"].to_list(),
+            "home_new": (pl.DataFrame({"team": home_teams})
+                         .join(dat.team_id_map, on = "team", how = "left")["id"].to_list()),
+            "away_new": (pl.DataFrame({"team": away_teams})
+                         .join(dat.team_id_map, on = "team", how = "left")["id"].to_list()),
+            "N_new": len(home_teams)
         }
 
         # Fitting model
@@ -184,4 +194,17 @@ class GamePredModel:
         pass
 
     def get_season_prediction(self):
-        pass
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        games_to_sim = helper.get_reg_scheduled_games(today_date, "2025-04-17")
+
+        res = self.__fit_model_multiple_preds(today_date, "2024", games_to_sim["home_team"].to_list(), games_to_sim["away_team"].to_list())
+        pred_home_goals = res.model.stan_variable("pred_home_goals")
+        pred_away_goals = res.model.stan_variable("pred_away_goals")
+        home_ot_win_prob = res.model.stan_variable("home_ot_win_prob")
+
+        single_sim_res = {}
+        for t in set(games_to_sim["home_team"], games_to_sim["away_team"]):
+            single_sim_res[t] = []
+        
+        for i in range(games_to_sim.shape[0]):
+            pass

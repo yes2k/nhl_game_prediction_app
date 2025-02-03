@@ -74,7 +74,7 @@ def get_current_standings() -> pl.DataFrame:
     return out
 
 
-def get_scheduled_games(first_date: str, last_date: str) -> pl.DataFrame:
+def get_reg_scheduled_games(first_date: str, last_date: str) -> pl.DataFrame:
     # dates should be formatted as YYYY-MM-DD
 
     date_range = (
@@ -105,10 +105,11 @@ def get_scheduled_games(first_date: str, last_date: str) -> pl.DataFrame:
         
         for game_date in data["gameWeek"]:
             for g in game_date["games"]:
-                out["date"].append(d)
-                out["id"].append(g["id"])
-                out["away_team"].append(g["awayTeam"]["abbrev"])
-                out["home_team"].append(g["homeTeam"]["abbrev"])
+                if g["gameType"] == 2:
+                    out["date"].append(d)
+                    out["id"].append(g["id"])
+                    out["away_team"].append(g["awayTeam"]["abbrev"])
+                    out["home_team"].append(g["homeTeam"]["abbrev"])
     
     return pl.DataFrame(out)
 
