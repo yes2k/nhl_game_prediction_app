@@ -4,6 +4,7 @@ import cmdstanpy
 import sqlite3
 import requests
 from dataclasses import dataclass
+import numpy as np
 
 import src.helper as helper
 
@@ -197,14 +198,35 @@ class GamePredModel:
         today_date = datetime.now().strftime("%Y-%m-%d")
         games_to_sim = helper.get_reg_scheduled_games(today_date, "2025-04-17")
 
+
         res = self.__fit_model_multiple_preds(today_date, "2024", games_to_sim["home_team"].to_list(), games_to_sim["away_team"].to_list())
         pred_home_goals = res.model.stan_variable("pred_home_goals")
         pred_away_goals = res.model.stan_variable("pred_away_goals")
         home_ot_win_prob = res.model.stan_variable("home_ot_win_prob")
 
-        single_sim_res = {}
-        for t in set(games_to_sim["home_team"], games_to_sim["away_team"]):
-            single_sim_res[t] = []
+
+        # Defs
+        # W -> 2
+        # L -> 3
+        # OT -> 4
+        # OTW -> 5
+        # OTL -> 6
+
+        home_sim_res = np.where(pred_home_goals > pred_away_goals, 2, np.where(pred_home_goals < pred_away_goals, 3, 4))
+        home_sim_res[np.where(home_sim_res == 4)] = np.random.binomial(1, home_ot_win_prob[np.where(home_sim_res == 4)])
+        home_sim_res = np.where(home_sim_res == 1, 5, home_sim_res)
+        home_sim_res = np.where(home_sim_res == 0, 6, home_sim_res)
+
+        away_sim_res = np.where(home_sim_res == 2, 3, np.where(home_sim_res == 3, 2, np.where(home_sim_res == 5, 6, 5)))
         
-        for i in range(games_to_sim.shape[0]):
-            pass
+        away_sim_res = np.where(away_sim_res == 2, 2, np.where(away_sim_res == 3, 0, np.where(away_sim_res == 5, 2, 1)))
+        home_sim_res = np.where(home_sim_res == 2, 2, np.where(home_sim_res == 3, 0, np.where(home_sim_res == 5, 2, 1)))
+
+
+        for team in set(games_to_sim["home_team"].unique().to_list() + games_to_sim["away_team"].unique().to_list()):
+            team_games_idx = (
+                (games_to_sim["home_team"] == team) | (games_to_sim["away_team"] == team)
+            ).arg_true()
+
+
+        print("jere")
