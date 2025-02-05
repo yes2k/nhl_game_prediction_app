@@ -96,20 +96,19 @@ def get_reg_scheduled_games(first_date: str, last_date: str) -> pl.DataFrame:
     }
 
     for d in date_range:
-        print(d)
         url = f"https://api-web.nhle.com/v1/schedule/{d}"
         try:
             data = requests.get(url).json()
         except:
             print("url not found")
         
-        for game_date in data["gameWeek"]:
-            for g in game_date["games"]:
-                if g["gameType"] == 2:
-                    out["date"].append(d)
-                    out["id"].append(g["id"])
-                    out["away_team"].append(g["awayTeam"]["abbrev"])
-                    out["home_team"].append(g["homeTeam"]["abbrev"])
+        # for game_date in data["gameWeek"]:
+        for g in data["gameWeek"][0]["games"]:
+            if g["gameType"] == 2:
+                out["date"].append(d)
+                out["id"].append(g["id"])
+                out["away_team"].append(g["awayTeam"]["abbrev"])
+                out["home_team"].append(g["homeTeam"]["abbrev"])
     
     return pl.DataFrame(out)
 
