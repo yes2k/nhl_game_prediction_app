@@ -237,3 +237,6 @@ class GamePredModel:
             team_point_proj[team] = (home_sim_res[:,team_home_games_idx].sum(axis = 1) + away_sim_res[:,team_away_games_idx].sum(axis = 1)) + current_points[team]
 
         return team_point_proj
+    
+    def get_prediction_heatmap_html(self, max_date: str, season: str, home_team: str, away_team: str):
+        pred = self.get_prediction(max_date, season, home_team, away_team)
