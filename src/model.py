@@ -197,6 +197,8 @@ class GamePredModel:
     def get_season_prediction(self):
         today_date = datetime.now().strftime("%Y-%m-%d")
         games_to_sim = helper.get_reg_scheduled_games(today_date, "2025-04-17")
+        current_standings = helper.get_current_standings()
+        current_points = dict(zip(current_standings["team"], current_standings["points"]))
 
 
         res = self.__fit_model_multiple_preds(today_date, "2024", games_to_sim["home_team"].to_list(), games_to_sim["away_team"].to_list())
@@ -222,11 +224,16 @@ class GamePredModel:
         away_sim_res = np.where(away_sim_res == 2, 2, np.where(away_sim_res == 3, 0, np.where(away_sim_res == 5, 2, 1)))
         home_sim_res = np.where(home_sim_res == 2, 2, np.where(home_sim_res == 3, 0, np.where(home_sim_res == 5, 2, 1)))
 
-
+        team_point_proj = {}
         for team in set(games_to_sim["home_team"].unique().to_list() + games_to_sim["away_team"].unique().to_list()):
-            team_games_idx = (
-                (games_to_sim["home_team"] == team) | (games_to_sim["away_team"] == team)
-            ).arg_true()
+            team_home_games_idx = (
+                (games_to_sim["home_team"] == team)
+            ).arg_true().to_list()
 
+            team_away_games_idx = (
+                (games_to_sim["away_team"] == team)
+            ).arg_true().to_list()
 
-        print("jere")
+            team_point_proj[team] = (home_sim_res[:,team_home_games_idx].sum(axis = 1) + away_sim_res[:,team_away_games_idx].sum(axis = 1)) + current_points[team]
+
+        return team_point_proj
