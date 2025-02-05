@@ -14,21 +14,6 @@
             </div>
         </div>
         <div class="row">
-            <div class="col-md-3">
-                <!-- Left 20% content goes here -->
-                <form>
-                    <div class="form-group">
-                    <label for="gameDate">Select Game Date:</label>
-                    <input type="date" class="form-control" id="gameDate" name="gameDate">
-                    </div>
-                    <div class="form-group">
-                        <label for="gameSelect">Select Game:</label>
-                        <select class="form-control" id="gameSelect" name="gameSelect">
-                        </select>
-                    </div>
-                    <button type="button" class="btn btn-primary" id="game_pred_button">Predict</button>
-                </form>
-            </div>
             <div class="col-md-9">
                 <ul class="nav nav-tabs" id="myTab" role="tablist">
                     <li class="nav-item">
@@ -37,9 +22,28 @@
                     <li class="nav-item">
                         <a class="nav-link" id="team-parameters-tab" data-toggle="tab" href="#team-parameters" role="tab" aria-controls="team-parameters" aria-selected="false">Team Parameters</a>
                     </li>
+                    <li class="nav-item"></li>
+                        <a class="nav-link" id="season-projection-tab" data-toggle="tab" href="#season-projection" role="tab" aria-controls="season-projection" aria-selected="false">Season Projection</a>
+                    </li>
                 </ul>
                 <div class="tab-content" id="myTabContent">
                     <div class="tab-pane fade show active" id="game-prediction" role="tabpanel" aria-labelledby="game-prediction-tab">
+                        <div class="col-md-3">
+                            <!-- Left 20% content goes here -->
+                            <form>
+                                <div class="form-group">
+                                <label for="gameDate">Select Game Date:</label>
+                                <input type="date" class="form-control" id="gameDate" name="gameDate">
+                                </div>
+                                <div class="form-group">
+                                    <label for="gameSelect">Select Game:</label>
+                                    <select class="form-control" id="gameSelect" name="gameSelect">
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-primary" id="game_pred_button">Predict</button>
+                            </form>
+                        </div>
+
                         <!-- Plots and tables for game prediction -->
                         <div id="spinner" class="spinner-border text-primary" role="status" style="display: none;">
                             <span class="sr-only">Loading...</span>
@@ -52,8 +56,9 @@
                         <!-- Plot of latent att and def variables go here  -->
                         <div id="team_parameters_plot"></div>
                     </div>
-                    <div class="tab-pane fade" id="over-time-plots" role="tabpanel" aria-labelledby="over-time-plots-tab">
-                        <div id="log_loss_ts_plot"></div>
+                    <div class="tab-pane fade" id="season-projection" role="tabpanel" aria-labelledby="season-projection-tab">
+                        <!-- Content for season projection goes here -->
+                        <div id="season_projection_plot"></div>
                     </div>
                 </div>
             </div>
@@ -175,6 +180,8 @@
 
             Plotly.newPlot(id, data, layout);
         }
+
+        
 
     </script>
 </body>
