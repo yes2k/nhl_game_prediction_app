@@ -6,7 +6,7 @@ import sys
 import time
 from argparse import ArgumentParser
 import os
-import model
+# import model
 
 
 def get_reg_goals(date: str):
