@@ -22,35 +22,35 @@
                     <li class="nav-item">
                         <a class="nav-link" id="team-parameters-tab" data-toggle="tab" href="#team-parameters" role="tab" aria-controls="team-parameters" aria-selected="false">Team Parameters</a>
                     </li>
-                    <li class="nav-item"></li>
+                    <li class="nav-item">
                         <a class="nav-link" id="season-projection-tab" data-toggle="tab" href="#season-projection" role="tab" aria-controls="season-projection" aria-selected="false">Season Projection</a>
                     </li>
                 </ul>
                 <div class="tab-content" id="myTabContent">
                     <div class="tab-pane fade show active" id="game-prediction" role="tabpanel" aria-labelledby="game-prediction-tab">
-                        <div class="col-md-3">
-                            <!-- Left 20% content goes here -->
-                            <form>
-                                <div class="form-group">
-                                <label for="gameDate">Select Game Date:</label>
-                                <input type="date" class="form-control" id="gameDate" name="gameDate">
-                                </div>
-                                <div class="form-group">
-                                    <label for="gameSelect">Select Game:</label>
-                                    <select class="form-control" id="gameSelect" name="gameSelect">
-                                    </select>
-                                </div>
-                                <button type="button" class="btn btn-primary" id="game_pred_button">Predict</button>
-                            </form>
+                        <div class="row">
+                            <div class="col-3">
+                                <form>
+                                    <div class="form-group">
+                                        <label for="gameDate">Select Game Date:</label>
+                                        <input type="date" class="form-control" id="gameDate" name="gameDate">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="gameSelect">Select Game:</label>
+                                        <select class="form-control" id="gameSelect" name="gameSelect">
+                                        </select>
+                                    </div>
+                                    <button type="button" class="btn btn-primary" id="game_pred_button">Predict</button>
+                                </form>
+                            </div>
+                            <div class="col-8">
+                                <!-- Plots and tables for game prediction -->
+                                <!-- <div id="spinner" class="spinner-border text-primary" role="status" style="display: none;">
+                                    <span class="sr-only">Loading...</span>
+                                </div> -->
+                                <div id="heat_map"></div>
+                            </div>
                         </div>
-
-                        <!-- Plots and tables for game prediction -->
-                        <div id="spinner" class="spinner-border text-primary" role="status" style="display: none;">
-                            <span class="sr-only">Loading...</span>
-                        </div>
-                        <div id="heat_map"></div>
-                        <div id="home_team_win_prob"></div>
-
                     </div>
                     <div class="tab-pane fade" id="team-parameters" role="tabpanel" aria-labelledby="team-parameters-tab">
                         <!-- Plot of latent att and def variables go here  -->
@@ -92,27 +92,23 @@
         });
 
         $('#game_pred_button').on('click', function(event) {
-
+            
+            // ======= Updating the game prediction plot =========
             // Show spinner
-            document.getElementById("spinner").style.display = 'block';
+            // document.getElementById("spinner").style.display = 'block';
             const date = document.getElementById("gameDate").value;
 
             const selectedText = document.getElementById("gameSelect").selectedOptions[0].text;
             const home_team = selectedText.split(' @ ')[1];
             const away_team = selectedText.split(' @ ')[0];
             
-            console.log(`date: ${date}, home_team: ${home_team}, away_team: ${away_team}`);
             fetch(`/game/${date}?home_team=${home_team}&away_team=${away_team}`,
                 { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
-                    console.log(data.team_params)
-                    create_heatmap(data.table_of_pred, 'heat_map', home_team, away_team);
+                    create_heatmap(data.table_of_pred, 'heat_map', home_team, away_team, data.home_team_win_prob);
                     create_scatterplot(data.team_params, 'team_parameters_plot');
-                    console.log(data.home_team_win_prob)
-                    document.getElementById("home_team_win_prob").innerText = `${home_team} win probability: ${data.home_team_win_prob}%`
-
-
+                    
                     // Hide spinner
                     document.getElementById("spinner").style.display = 'none';
                 })
@@ -120,21 +116,38 @@
                     console.error('Failed to fetch game prediction: ', error);
 
                     // Hide spinner
-                    document.getElementById("spinner").style.display = 'none';
-                });            
+                    // document.getElementById("spinner").style.display = 'none';
+                });          
+                
+            //  ======= Updating the team parameters plot =========
+
+
+            // ======== Updating the season projection plot =========
+            // fetch(`/season_projection`, { method: 'GET' })
+            //     .then(response => response.json())
+            //     .then(data => {
+            //         create_boxplot(data, 'season_projection_plot');
+            //     })
+            //     .catch(error => {
+            //         console.error('Failed to fetch season projection: ', error);
+            //     });
         });
 
-        function create_heatmap(df, id, home_team_name, away_team_name){
+        function create_heatmap(df, id, home_team_name, away_team_name, win_prob){
+            const z = df.map(d => d.len);
+            const x = df.map(d => d.home);
+            const y = df.map(d => d.away);
 
-            var data = [{
-                z: df.map(d => d.len),
-                x: df.map(d => d.home),
-                y: df.map(d => d.away),
+            const data = [{
+                z: z,
+                x: x,
+                y: y,
                 type: 'heatmap',
                 colorscale: 'Viridis'
             }];
-
-            var layout = {
+            
+            const roundedWinProb = (Math.round(win_prob * 100) / 100).toFixed(2);
+            const layout = {
                 title: 'Game Prediction Heatmap',
                 xaxis: {
                     title: `${home_team_name} Goals`
@@ -142,6 +155,25 @@
                 yaxis: {
                     title: `${away_team_name} Goals`
                 },
+                annotations: [
+                    {
+                        x: 10,
+                        y: 10,
+                        text: `${home_team_name} win prob:<br>${roundedWinProb}%`,
+                        showarrow: false,
+                        font: {
+                            family: 'Courier New, monospace',
+                            size: 14,
+                            color: '#ffffff'
+                        },
+                        align: 'center',
+                        bordercolor: "#c7c7c7",
+                        borderwidth: 2,
+                        borderpad: 4,
+                        bgcolor: "#ff7f0e",
+                        opacity: 0.8
+                    }
+                ],
                 autosize: true,
                 width: null,
                 height: null,
@@ -181,8 +213,29 @@
             Plotly.newPlot(id, data, layout);
         }
 
-        
+        function create_boxplot(df, id){
+            var data = [];
+            for (const [key, value] of Object.entries(df)) {
+                data.push({
+                    type: "box",
+                    y: value,
+                    name: key
+                });
+            }
 
+            var layout = {
+                title: 'Season Point Projection',
+                xaxis: {
+                    title: 'Team'
+                },
+                yaxis: {
+                    title: 'Points'
+                },
+                show_legend: false
+            };
+
+            Plotly.newPlot(id, data, layout);
+        }
     </script>
 </body>
 </html>
