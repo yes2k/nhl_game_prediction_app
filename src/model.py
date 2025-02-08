@@ -5,8 +5,9 @@ import sqlite3
 import requests
 from dataclasses import dataclass
 import numpy as np
+import plotly.graph_objects as go
 
-import src.helper as helper
+import helper as helper
 
 @dataclass
 class DataModel:
@@ -137,7 +138,7 @@ class GamePredModel:
             .with_columns(pl.col("var").str.extract(r"(\d+)").cast(pl.Int32).alias("team_id"))
             .with_columns(pl.col("var").str.extract(r"(att|def)").alias("type"))
             .drop("var")
-            .left_join(team_id_map, left_on="team_id", right_on="id")
+            .join(team_id_map, left_on="team_id", right_on="id")
         )
 
         return team_latent_params
@@ -235,8 +236,63 @@ class GamePredModel:
             ).arg_true().to_list()
 
             team_point_proj[team] = (home_sim_res[:,team_home_games_idx].sum(axis = 1) + away_sim_res[:,team_away_games_idx].sum(axis = 1)) + current_points[team]
-
+            team_point_proj[team] = team_point_proj[team].tolist()
         return team_point_proj
     
-    def get_prediction_heatmap_html(self, max_date: str, season: str, home_team: str, away_team: str):
+    def get_prediction_heatmap_html(self, max_date: str, season: str, home_team: str, away_team: str) -> str:
         pred = self.get_prediction(max_date, season, home_team, away_team)
+
+        fig = go.Figure(data=go.Heatmap(
+            z=pred.pred_table["len"].to_list(),
+            x=pred.pred_table["home"].to_list(),
+            y=pred.pred_table["away"].to_list(),
+            hoverongaps=False,
+            hovertemplate='Home Goals: %{x}<br>Away Goals: %{y}<br>Probability: %{z}<extra></extra>'
+            )
+        )
+
+        fig = fig.add_annotation(     
+            x=max(pred.pred_table["home"].to_list()) - 1,
+            y=max(pred.pred_table["away"].to_list()) - 1,
+            text=f"{home_team} Win Probability: {round(pred.prob_home_team_win * 100, 2)}%",
+            showarrow=False,
+            font=dict(
+                size=16,
+                color="#ffffff"
+            ),
+            align="center",
+            bordercolor="#c7c7c7",
+            borderwidth=2,
+            borderpad=4,
+            bgcolor="#ff7f0e",
+            opacity=0.8
+        )
+
+
+        fig.update_layout(
+            xaxis_title=f"{home_team} Goals",
+            yaxis_title=f"{away_team} Goals"
+        )
+
+        return fig.to_html(full_html=False)
+    
+    def get_season_projection_box_plot(self):
+        season_proj = self.get_season_prediction()
+        fig = go.Figure()
+
+        sorted_teams = sorted(season_proj.items(), key=lambda x: np.median(x[1]), reverse=True)
+        
+        for team, points in sorted_teams:
+            fig.add_trace(go.Box(
+            y=points,
+            name=team,
+            showlegend=False
+            ))
+
+        fig.update_layout(
+            title="Season Points Projection",
+            yaxis_title="Points",
+            xaxis_title="Teams"
+        )
+
+        return fig.to_html()
