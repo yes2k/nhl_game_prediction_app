@@ -113,5 +113,14 @@ def get_reg_scheduled_games(first_date: str, last_date: str) -> pl.DataFrame:
     return pl.DataFrame(out)
 
 
+def get_nhl_season(date_str: str) -> str:
+    date = datetime.strptime(date_str, "%Y-%m-%d")
+    year = date.year
+    if date.month > 6:  # NHL season starts in October and ends in June
+        return f"{year}"
+    else:
+        return f"{year - 1}"
+
+
 
 
