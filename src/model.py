@@ -46,6 +46,9 @@ class GamePredModel:
             pl.read_database(query=query, connection=con)
         )
 
+        if out.shape[0] == 0:
+            raise IndexError("No Data Found")
+
         team_id_map = helper.get_all_teams()
 
         # Join out with team_id_map for home and away teams
@@ -67,6 +70,7 @@ class GamePredModel:
             out, 
             team_id_map.with_columns(pl.col("id").cast(pl.Int32))   
         )
+
 
     def __fit_model(self, max_date: str, season: str, home_team: str, away_team: str) -> ModelResult:
         # Loading stan model from file
@@ -188,12 +192,13 @@ class GamePredModel:
         )
 
 
-
     def get_log_loss(self):
         pass
 
+
     def get_accuracy(self):
         pass
+
 
     def get_season_prediction(self):
         today_date = datetime.now().strftime("%Y-%m-%d")
@@ -239,6 +244,7 @@ class GamePredModel:
             team_point_proj[team] = team_point_proj[team].tolist()
         return team_point_proj
     
+
     def get_prediction_heatmap_html(self, max_date: str, season: str, home_team: str, away_team: str) -> str:
         pred = self.get_prediction(max_date, season, home_team, away_team)
 
@@ -276,6 +282,7 @@ class GamePredModel:
 
         return fig.to_html(full_html=False)
     
+
     def get_season_projection_box_plot(self):
         season_proj = self.get_season_prediction()
         fig = go.Figure()
@@ -295,4 +302,4 @@ class GamePredModel:
             xaxis_title="Teams"
         )
 
-        return fig.to_html()
+        return fig.to_html(full_html=False)
