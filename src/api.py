@@ -30,6 +30,13 @@ async def root(request: Request):
 @app.get("/game/{date_of_pred}")
 async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
     season = helper.get_nhl_season(date_of_pred)
+
+    start_date, end_date = helper.get_prediction_date_range()
+    pred_date = datetime.strptime(date_of_pred, "%Y-%m-%d").date()
+
+    if not (start_date <= pred_date <= end_date):
+        return {"error": "Prediction date is out of range"}
+
     out = Mod.get_prediction(date_of_pred, season, home_team, away_team)
     return { 
         'table_of_pred': out.pred_table.to_dicts(), 

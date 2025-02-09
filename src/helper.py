@@ -122,5 +122,23 @@ def get_nhl_season(date_str: str) -> str:
         return f"{year - 1}"
 
 
+def get_season_start_end_dates(season: str) -> dict:
+    url = f"https://api.nhle.com/stats/rest/en/season"
+
+    try:
+        data = requests.get(url).json()
+    except Exception as e:
+        print(e)
+        return {}
+    
+    season_info = list(filter(lambda x: x["id"] == f"{season}{str(int(season)+1)}", data["data"]))
+
+    if len(season_info) == 0:
+        return {}
+    else:
+        return (
+            datetime.strptime(season_info[0]["regularSeasonStartDate"], "%Y-%m-%dT%H:%M:%S").date(),
+            datetime.strptime(season_info[0]["regularSeasonEndDate"], "%Y-%m-%dT%H:%M:%S").date()
+        )
 
 
