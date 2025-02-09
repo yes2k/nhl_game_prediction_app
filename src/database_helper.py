@@ -6,7 +6,9 @@ import sys
 import time
 from argparse import ArgumentParser
 import os
-# import model
+
+import model as model
+import helper as helper 
 
 
 def get_reg_goals(date: str):
@@ -77,11 +79,17 @@ def build_database(start_date: str, path_to_db: str) -> None:
         if_table_exists="replace"
     )
 
-    # Add model pred to database
+
+    # TODO: Adding other stuff to database
+    pred_goal_data = []
+    team_params = []
+    game_prob = []
+    mod = model.GamePredModel(f"{path_to_db}/data.db", "src/model/model.stan")
     for d in date_range:
-        res = model.get_model_data("data/data.db", "2024", d)
-        res_minus_1 = res["model_df"].filter(pl.col("date") < d)
-        to_pred_df = res["model_df"].filter(pl.col("date") == d)
+        for g in helper.get_game_ids(d)["res"]:
+            out = mod.get_prediction(d, helper.get_nhl_season(d), g["home_team"], g["away_team"])
+    
+
 
 
 
@@ -121,10 +129,11 @@ def update_database(path_to_db: str) -> None:
         if_table_exists="append"
     )
 
+    # TODO: adding pred goal data
 
+    # TODO: adding team params data
 
-
-    
+    # TODO: adding season proj data
 
 
 
