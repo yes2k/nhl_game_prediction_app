@@ -31,11 +31,11 @@ async def root(request: Request):
 async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
     season = helper.get_nhl_season(date_of_pred)
 
-    start_date, end_date = helper.get_prediction_date_range()
+    # start_date, end_date = helper.get_prediction_date_range()
     pred_date = datetime.strptime(date_of_pred, "%Y-%m-%d").date()
 
-    if not (start_date <= pred_date <= end_date):
-        return {"error": "Prediction date is out of range"}
+    # if not (start_date <= pred_date <= end_date):
+    #     return {"error": "Prediction date is out of range"}
 
     out = Mod.get_prediction(date_of_pred, season, home_team, away_team)
     return { 
@@ -49,15 +49,19 @@ async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
 async def get_season_projection():
     return Mod.get_season_prediction()
 
+
+
 @app.get("/season_projection_plot")
 async def get_season_projection_plot():
     return Mod.get_season_projection_box_plot()
+
 
 
 @app.get("/game/{date_of_pred}/heatmap")
 async def get_heatmap(date_of_pred: str, home_team: str, away_team: str):
     season = helper.get_nhl_season(date_of_pred)
     return Mod.get_prediction_heatmap_html(date_of_pred, season, home_team, away_team)
+
 
 
 @app.get("/team_params/{game_id}")

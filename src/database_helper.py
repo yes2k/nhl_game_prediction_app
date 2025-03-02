@@ -88,6 +88,7 @@ def build_database(start_date: str, path_to_db: str) -> None:
     for d in date_range:
         for g in helper.get_game_ids(d)["res"]:
             out = mod.get_prediction(d, helper.get_nhl_season(d), g["home_team"], g["away_team"])
+            
     
 
 
