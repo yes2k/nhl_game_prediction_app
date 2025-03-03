@@ -7,8 +7,8 @@ import time
 from argparse import ArgumentParser
 import os
 
-import model as model
-import helper as helper 
+import src.model as model
+import src.helper as helper 
 
 
 def get_reg_goals(date: str):
@@ -80,15 +80,48 @@ def build_database(start_date: str, path_to_db: str) -> None:
     )
 
 
-    # TODO: Adding other stuff to database
     pred_goal_data = []
     team_params = []
-    game_prob = []
     mod = model.GamePredModel(f"{path_to_db}/data.db", "src/model/model.stan")
     for d in date_range:
         for g in helper.get_game_ids(d)["res"]:
-            out = mod.get_prediction(d, helper.get_nhl_season(d), g["home_team"], g["away_team"])
-            
+            if str(g["game_id"])[4:6] == '02':
+                print(g["game_id"])
+                out = mod.get_prediction(d, helper.get_nhl_season(d), g["home_team"], g["away_team"])
+                pred_goal_data.append(
+                    out.pred_table.with_columns(
+                        pl.lit(d).alias("date_of_game"),
+                        pl.lit(g["game_id"]).alias("game_id"),
+                        pl.lit(g["home_team"]).alias("home_team"),
+                        pl.lit(g["away_team"]).alias("away_team"),
+                        pl.lit(out.prob_home_team_win).alias("prob_home_team_win")
+                    )
+                )
+
+                team_params.append(
+                    out.team_params
+                    .select(["50%", "team", "type"])
+                    .with_columns(
+                        pl.lit(d).alias("date_of_pred")
+                    )
+                    .rename({"50%":"param"})
+                )
+    
+    (
+        pl.concat(pred_goal_data, how = "vertical_relaxed")
+        .write_database(
+            table_name = "pred_goal_data",
+            connection = f"sqlite:///{path_to_db}/data.db"
+        )
+    )
+
+    (
+        pl.concat(team_params, how = "vertical_relaxed")
+        .write_database(
+            table_name = "team_params",
+            connection = f"sqlite:///{path_to_db}/data.db"
+        )
+    )
     
 
 
