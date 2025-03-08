@@ -6,6 +6,7 @@ import sys
 import time
 from argparse import ArgumentParser
 import os
+import json
 
 # import src.model as model
 # import src.helper as helper 
@@ -123,13 +124,18 @@ def build_database(start_date: str, path_to_db: str) -> None:
         )
     )
 
-    # (
-    #     pl.concat(team_params, how = "vertical_relaxed")
-    #     .write_database(
-    #         table_name = "team_params",
-    #         connection = f"sqlite:///{path_to_db}/data.db"
-    #     )
-    # )
+    # Getting latest team parameters
+    (
+        mod.get_team_params()
+        .write_database(
+            table_name = "team_params",
+            connection = f"sqlite:///{path_to_db}/data.db"
+        )
+    )
+
+    # Getting the season predictions
+    with open('data/seasons_proj.json', 'w') as f:
+        json.dump(mod.get_season_prediction(), f)
     
 
 def update_database(path_to_db: str) -> None:
@@ -167,7 +173,6 @@ def update_database(path_to_db: str) -> None:
         if_table_exists="append"
     )
 
-    # pred_goal_data = []
     # team_params = []
     mod = model.GamePredModel(f"{path_to_db}/data.db", "src/model/model.stan")
     # for d in date_range:
@@ -186,25 +191,23 @@ def update_database(path_to_db: str) -> None:
     #             )
     
 
-     # getting predictions for the current day, and next day
+    # getting predictions for the current day, and next day
     pred_goal_data = []
-    date_range2 = [d, (date.today() + timedelta(days = 1)).strftime("%Y-%m-%d")]
+    date_range2 = [date.today().strftime("%Y-%m-%d"), (date.today() + timedelta(days = 1)).strftime("%Y-%m-%d")]
     for d in date_range2:
         for g in helper.get_game_ids(d)["res"]:
             if str(g["game_id"])[4:6] == '02':
-                d2 = date(int(d[0:4]), int(d[5:7]), int(d[8:10])) - timedelta(days=1).strftime("%Y-%m-%d")
+                d2 = (date(int(d[0:4]), int(d[5:7]), int(d[8:10])) - timedelta(days=1)).strftime("%Y-%m-%d")
                 out = mod.get_prediction(d2, helper.get_nhl_season(d), g["home_team"], g["away_team"])
                 pred_goal_data.append(
                     out.pred_table.with_columns(
                         pl.lit(d).alias("date_of_game"),
-                        pl.lit(date.today()).alias("date_of_pred"),
                         pl.lit(g["game_id"]).alias("game_id"),
                         pl.lit(g["home_team"]).alias("home_team"),
                         pl.lit(g["away_team"]).alias("away_team"),
                         pl.lit(out.prob_home_team_win).alias("prob_home_team_win")
                     )
                 )
-
 
     (
         pl.concat(pred_goal_data, how = "vertical_relaxed")
@@ -214,15 +217,18 @@ def update_database(path_to_db: str) -> None:
         )
     )
 
-    # (
-    #     pl.concat(team_params, how = "vertical_relaxed")
-    #     .write_database(
-    #         table_name = "team_params",
-    #         connection = f"sqlite:///{path_to_db}/data.db",
-    #         if_table_exists="append"
-    #     )
-    # )
+    # Getting latest team parameters
+    (
+        mod.get_team_params(date_range2[0], helper.get_nhl_season(date_range2[0]))
+        .write_database(
+            table_name = "team_params",
+            connection = f"sqlite:///{path_to_db}/data.db"
+        )
+    )
 
+    # Getting the season predictions
+    with open('data/seasons_proj.json', 'w') as f:
+        json.dump(mod.get_season_prediction(), f)
 
 
 if __name__  == "__main__":

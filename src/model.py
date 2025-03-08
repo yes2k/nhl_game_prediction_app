@@ -6,6 +6,8 @@ import requests
 from dataclasses import dataclass
 import numpy as np
 import plotly.graph_objects as go
+import os
+import json
 
 # import src.helper as helper
 import helper as helper
@@ -150,6 +152,22 @@ class GamePredModel:
         return team_latent_params
 
 
+    def get_team_params(self) -> pl.DataFrame:
+        con = sqlite3.connect(self.path_to_db)
+        cursor = con.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='team_params';")
+        table_exists = cursor.fetchone()
+
+        if table_exists:
+            query = "SELECT * FROM team_params"
+            return pl.read_database(query=query, connection=con)
+        else:
+            today_date = datetime.now().strftime("%Y-%m-%d")
+            model = self.__fit_model(today_date, helper.get_nhl_season(today_date), "TOR", "BOS")
+            latent_team_params = self.__get_params(model, model.model_data.team_id_map)
+            return latent_team_params
+    
+
     def get_prediction(self, max_date: str, season: str, home_team: str, away_team: str) -> PredResult:
         
         con = sqlite3.connect(self.path_to_db)
@@ -221,7 +239,13 @@ class GamePredModel:
         pass
 
 
-    def get_season_prediction(self):
+    def get_season_prediction(self) -> dict[str, int]:
+        
+        if os.path.exists("data/seasons_proj.json"):
+            with open("data/seasons_proj.json", "r") as f:
+                return json.load(f)
+
+
         today_date = datetime.now().strftime("%Y-%m-%d")
         games_to_sim = helper.get_reg_scheduled_games(today_date, "2025-04-17")
         current_standings = helper.get_current_standings()
