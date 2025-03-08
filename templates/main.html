@@ -29,21 +29,14 @@
                 <div class="tab-content" id="myTabContent">
                     <div class="tab-pane fade show active" id="game-prediction" role="tabpanel" aria-labelledby="game-prediction-tab">
                         <div class="row">
-                            <div class="col-3">
-                                <form>
-                                    <div class="form-group">
-                                        <label for="gameDate">Select Game Date:</label>
-                                        <input type="date" class="form-control" id="gameDate" name="gameDate">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="gameSelect">Select Game:</label>
-                                        <select class="form-control" id="gameSelect" name="gameSelect">
-                                        </select>
-                                    </div>
-                                    <button type="button" class="btn btn-primary" id="game_pred_button">Predict</button>
-                                </form>
+                            <div class="container">
+                                <p>Choose a Game ...</p>
+                                <select class="form-select" aria-label="Default select example" id="gameSelect">
+                                    <optgroup label="Today's Games" id="todays_games"></optgroup>
+                                    <optgroup label="Tomorrow's Games" id="tomorrows_games"></optgroup>
+                                </select>
                             </div>
-                            <div class="col-8">
+                            <div class="container">
                                 <!-- Plots and tables for game prediction -->
                                 <!-- <div id="spinner" class="spinner-border text-primary" role="status" style="display: none;">
                                     <span class="sr-only">Loading...</span>
@@ -70,68 +63,72 @@
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 
     <script>
-        document.getElementById("gameDate").addEventListener("change", function() {
-            var date = this.value;
-            console.log(date);
+        function getCurrentDate() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
 
-            fetch(`/game_ids/${date}`, { method: 'GET' })
+        function getTomorrowsDate() {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const year = tomorrow.getFullYear();
+            const month = String(tomorrow.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+            const day = String(tomorrow.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        const dateMap = {
+            todays: getCurrentDate(),
+            tomorrows: getTomorrowsDate()
+        };
+        
+        for (const [key, value] of Object.entries(dateMap)) {
+
+            fetch(`/game_ids/${value}`, { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
-                    var select = document.getElementById("gameSelect");
-                    select.innerHTML = ''; // Clear existing options
                     data.forEach(game => {
-                        var option = document.createElement("option");
-                        option.text = `${game.away_team} @ ${game.home_team}`;
-                        option.value = game.gid;
-                        select.appendChild(option);
+                        let option = document.createElement("option");
+                        option.textContent = `${game.away_team} @ ${game.home_team}`;
+                        option.value = value;
+                        document.getElementById(`${key}_games`).appendChild(option);
                     });
                 })
                 .catch(error => {
-                    console.error('Failed to fetch game IDs: ', error);
+                    console.error('Failed to fetch games: ', error);
                 });
-        });
 
-        $('#game_pred_button').on('click', function(event) {
-            
-            // ======= Updating the game prediction plot =========
-            // Show spinner
-            // document.getElementById("spinner").style.display = 'block';
-            const date = document.getElementById("gameDate").value;
+        }
 
-            const selectedText = document.getElementById("gameSelect").selectedOptions[0].text;
-            const home_team = selectedText.split(' @ ')[1];
-            const away_team = selectedText.split(' @ ')[0];
+        document.getElementById("gameSelect").addEventListener("change", function(event) {
+            const selectedOption = event.target.selectedOptions[0];
+            const date = selectedOption.value;
+            const gameText = selectedOption.textContent;
+            const [away_team, home_team] = gameText.split(' @ ');
             
-            fetch(`/game/${date}?home_team=${home_team}&away_team=${away_team}`,
-                { method: 'GET' })
+            fetch(`/game/${date}?home_team=${home_team}&away_team=${away_team}`, { method: 'GET' })
                 .then(response => response.json())
                 .then(data => {
                     create_heatmap(data.table_of_pred, 'heat_map', home_team, away_team, data.home_team_win_prob);
                     create_scatterplot(data.team_params, 'team_parameters_plot');
-                    
-                    // Hide spinner
-                    document.getElementById("spinner").style.display = 'none';
                 })
                 .catch(error => {
                     console.error('Failed to fetch game prediction: ', error);
-
-                    // Hide spinner
-                    // document.getElementById("spinner").style.display = 'none';
-                });          
-                
-            //  ======= Updating the team parameters plot =========
-
-
-            // ======== Updating the season projection plot =========
-            // fetch(`/season_projection`, { method: 'GET' })
-            //     .then(response => response.json())
-            //     .then(data => {
-            //         create_boxplot(data, 'season_projection_plot');
-            //     })
-            //     .catch(error => {
-            //         console.error('Failed to fetch season projection: ', error);
-            //     });
+                });
         });
+
+        // ======== Updating the season projection plot =========
+        // fetch(`/season_projection`, { method: 'GET' })
+        //     .then(response => response.json())
+        //     .then(data => {
+        //         create_boxplot(data, 'season_projection_plot');
+        //     })
+        //     .catch(error => {
+        //         console.error('Failed to fetch season projection: ', error);
+        //     });
 
         function create_heatmap(df, id, home_team_name, away_team_name, win_prob){
             const z = df.map(d => d.len);

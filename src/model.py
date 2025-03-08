@@ -7,7 +7,9 @@ from dataclasses import dataclass
 import numpy as np
 import plotly.graph_objects as go
 
+# import src.helper as helper
 import helper as helper
+
 
 @dataclass
 class DataModel:
@@ -149,6 +151,25 @@ class GamePredModel:
 
 
     def get_prediction(self, max_date: str, season: str, home_team: str, away_team: str) -> PredResult:
+        
+        con = sqlite3.connect(self.path_to_db)
+        cursor = con.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pred_goal_data';")
+        table_exists = cursor.fetchone()
+
+        if table_exists:
+            query = f"""
+                SELECT date_of_game as date, CAST(game_id as text) game_id, away_team, 
+                    home, away, prob_home_team_win, len
+                FROM pred_goal_data
+                WHERE date == "{max_date}" AND home_team == "{home_team}" AND away_team == "{away_team}"
+                ORDER BY game_id
+            """
+            out = pl.read_database(query=query, connection=con)
+
+            if out.shape[0] > 0:
+                return PredResult(out.drop("prob_home_team_win"), out["prob_home_team_win"][0], pl.DataFrame())
+
 
         model = self.__fit_model(max_date, season, home_team, away_team)
 

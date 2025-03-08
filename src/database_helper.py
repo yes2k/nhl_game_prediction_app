@@ -7,9 +7,11 @@ import time
 from argparse import ArgumentParser
 import os
 
-import src.model as model
-import src.helper as helper 
+# import src.model as model
+# import src.helper as helper 
 
+import model as model
+import helper as helper 
 
 def get_reg_goals(date: str):
     def get_reg_goals_single_game(x, d):
@@ -60,8 +62,6 @@ def build_database(start_date: str, path_to_db: str) -> None:
     """
     start_date should be formatted as YYYY-MM-DD    
     """
-
-
     start_date = date(int(start_date[0:4]), int(start_date[5:7]), int(start_date[8:10]))
     end_date = date.today() - timedelta(days = 1)
     date_range = pl.date_range(start_date, end_date, eager=True).cast(pl.String).alias("date").to_list()
@@ -80,61 +80,40 @@ def build_database(start_date: str, path_to_db: str) -> None:
     )
 
     # Getting the team parameters and pred goals based on model
-    pred_goal_data = []
-    team_params = []
+    # pred_goal_data = []
+    # team_params = []
     mod = model.GamePredModel(f"{path_to_db}/data.db", "src/model/model.stan")
-    for d in date_range[1:]:
+    # for d in date_range[1:]:
+    #     for g in helper.get_game_ids(d)["res"]:
+    #         if str(g["game_id"])[4:6] == '02':
+    #             print(g["game_id"])
+    #             out = mod.get_prediction(d, helper.get_nhl_season(d), g["home_team"], g["away_team"])
+    #             team_params.append(
+    #                 out.team_params
+    #                 .select(["50%", "team", "type"])
+    #                 .with_columns(
+    #                     pl.lit(d).alias("date_of_pred")
+    #                 )
+    #                 .rename({"50%":"param"})
+    #             )
+    
+    # getting predictions for the current day, and next day
+    pred_goal_data = []
+    date_range2 = [date.today().strftime("%Y-%m-%d"), (date.today() + timedelta(days = 1)).strftime("%Y-%m-%d")]
+    for d in date_range2:
         for g in helper.get_game_ids(d)["res"]:
             if str(g["game_id"])[4:6] == '02':
-                print(g["game_id"])
-                # need to make prediction using data up to and including the previous day
-                max_date = date(int(d[0:4]), int(d[5:7]), int(d[8:10])) - timedelta(days = 1)
-                out = mod.get_prediction(max_date, helper.get_nhl_season(d), g["home_team"], g["away_team"])
+                d2 = (date(int(d[0:4]), int(d[5:7]), int(d[8:10])) - timedelta(days=1)).strftime("%Y-%m-%d")
+                out = mod.get_prediction(d2, helper.get_nhl_season(d), g["home_team"], g["away_team"])
                 pred_goal_data.append(
                     out.pred_table.with_columns(
                         pl.lit(d).alias("date_of_game"),
-                        pl.lit(max_date).alias("date_of_pred"),
                         pl.lit(g["game_id"]).alias("game_id"),
                         pl.lit(g["home_team"]).alias("home_team"),
                         pl.lit(g["away_team"]).alias("away_team"),
                         pl.lit(out.prob_home_team_win).alias("prob_home_team_win")
                     )
                 )
-
-                team_params.append(
-                    out.team_params
-                    .select(["50%", "team", "type"])
-                    .with_columns(
-                        pl.lit(max_date).alias("date_of_pred")
-                    )
-                    .rename({"50%":"param"})
-                )
-    
-    # getting predictions for the current day
-    d = date.today().strftime("%Y-%m-%d")
-    for g in helper.get_game_ids(d)["res"]:
-        if str(g["game_id"])[4:6] == '02':
-            out = mod.get_prediction(date.today(), helper.get_nhl_season(d), g["home_team"], g["away_team"])
-            pred_goal_data.append(
-                out.pred_table.with_columns(
-                    pl.lit(d).alias("date_of_game"),
-                    pl.lit(date.today()).alias("date_of_pred"),
-                    pl.lit(g["game_id"]).alias("game_id"),
-                    pl.lit(g["home_team"]).alias("home_team"),
-                    pl.lit(g["away_team"]).alias("away_team"),
-                    pl.lit(out.prob_home_team_win).alias("prob_home_team_win")
-                )
-            )
-
-            team_params.append(
-                out.team_params
-                .select(["50%", "team", "type"])
-                .with_columns(
-                    pl.lit(date.today()).alias("date_of_pred")
-                )
-                .rename({"50%":"param"})
-            )
-
 
     (
         pl.concat(pred_goal_data, how = "vertical_relaxed")
@@ -144,19 +123,15 @@ def build_database(start_date: str, path_to_db: str) -> None:
         )
     )
 
-    (
-        pl.concat(team_params, how = "vertical_relaxed")
-        .write_database(
-            table_name = "team_params",
-            connection = f"sqlite:///{path_to_db}/data.db"
-        )
-    )
+    # (
+    #     pl.concat(team_params, how = "vertical_relaxed")
+    #     .write_database(
+    #         table_name = "team_params",
+    #         connection = f"sqlite:///{path_to_db}/data.db"
+    #     )
+    # )
     
 
-
-
-
-# To be run early morning
 def update_database(path_to_db: str) -> None:
     con = sqlite3.connect(f"{path_to_db}/data.db")
     cur = con.cursor()
@@ -192,17 +167,37 @@ def update_database(path_to_db: str) -> None:
         if_table_exists="append"
     )
 
-    pred_goal_data = []
-    team_params = []
+    # pred_goal_data = []
+    # team_params = []
     mod = model.GamePredModel(f"{path_to_db}/data.db", "src/model/model.stan")
-    for d in date_range:
+    # for d in date_range:
+    #     for g in helper.get_game_ids(d)["res"]:
+    #         if str(g["game_id"])[4:6] == '02':
+    #             print(g["game_id"])
+    #             max_date = date(int(d[0:4]), int(d[5:7]), int(d[8:10])) - timedelta(days = 1)
+    #             out = mod.get_prediction(max_date, helper.get_nhl_season(d), g["home_team"], g["away_team"])
+    #             team_params.append(
+    #                 out.team_params
+    #                 .select(["50%", "team", "type"])
+    #                 .with_columns(
+    #                     pl.lit(d).alias("date_of_pred")
+    #                 )
+    #                 .rename({"50%":"param"})
+    #             )
+    
+
+     # getting predictions for the current day, and next day
+    pred_goal_data = []
+    date_range2 = [d, (date.today() + timedelta(days = 1)).strftime("%Y-%m-%d")]
+    for d in date_range2:
         for g in helper.get_game_ids(d)["res"]:
             if str(g["game_id"])[4:6] == '02':
-                print(g["game_id"])
-                out = mod.get_prediction(d, helper.get_nhl_season(d), g["home_team"], g["away_team"])
+                d2 = date(int(d[0:4]), int(d[5:7]), int(d[8:10])) - timedelta(days=1).strftime("%Y-%m-%d")
+                out = mod.get_prediction(d2, helper.get_nhl_season(d), g["home_team"], g["away_team"])
                 pred_goal_data.append(
                     out.pred_table.with_columns(
                         pl.lit(d).alias("date_of_game"),
+                        pl.lit(date.today()).alias("date_of_pred"),
                         pl.lit(g["game_id"]).alias("game_id"),
                         pl.lit(g["home_team"]).alias("home_team"),
                         pl.lit(g["away_team"]).alias("away_team"),
@@ -210,35 +205,23 @@ def update_database(path_to_db: str) -> None:
                     )
                 )
 
-                team_params.append(
-                    out.team_params
-                    .select(["50%", "team", "type"])
-                    .with_columns(
-                        pl.lit(d).alias("date_of_pred")
-                    )
-                    .rename({"50%":"param"})
-                )
-    
-    # Getting the today's day predictions
 
-    
     (
         pl.concat(pred_goal_data, how = "vertical_relaxed")
         .write_database(
             table_name = "pred_goal_data",
-            connection = f"sqlite:///{path_to_db}/data.db",
-            if_table_exists="append"
+            connection = f"sqlite:///{path_to_db}/data.db"
         )
     )
 
-    (
-        pl.concat(team_params, how = "vertical_relaxed")
-        .write_database(
-            table_name = "team_params",
-            connection = f"sqlite:///{path_to_db}/data.db",
-            if_table_exists="append"
-        )
-    )
+    # (
+    #     pl.concat(team_params, how = "vertical_relaxed")
+    #     .write_database(
+    #         table_name = "team_params",
+    #         connection = f"sqlite:///{path_to_db}/data.db",
+    #         if_table_exists="append"
+    #     )
+    # )
 
 
 
