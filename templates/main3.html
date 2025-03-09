@@ -45,7 +45,9 @@
         </div>
     </div>
 
-    <div class="container-fluid" id="team_params" style="display: none;"></div>
+    <div class="container-fluid" id="team_params" style="display: none;">
+        <div id = "team_params_plot"></div>
+    </div>
     <div class="container-fluid" id="season_projection" style="display: none;"></div>
 
     <!-- <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script> -->
@@ -54,6 +56,15 @@
     <script src="https://d3js.org/d3.v4.js"></script>
 
     <script>
+        // add team scatter plot
+        fetch('/team_params')
+            .then(response => response.json())
+            .then(data => {
+                create_scatterplot(data['team_params'], 'team_params_plot');
+            })
+            .catch(error => console.error('Error fetching team parameters:', error));
+
+
         // Update select game options
         document.querySelector('input[type="date"]').addEventListener('change', function() {
             const date = this.value;
@@ -223,6 +234,18 @@
         function create_scatterplot(df, id){
             d3.select(`#${id}`).select("svg").remove();
 
+            const uniqueTeams = [...new Set(df.map(d => d.team))];
+            plt_data = uniqueTeams.map(team => {
+                const team_df = df.filter(d => d.team == team);
+                return { 
+                    att: team_df.filter(d => d.type == "att")[0]["50%"], 
+                    def: -team_df.filter(d => d.type == "def")[0]["50%"], 
+                    team: team
+                }
+            });
+
+            console.log(plt_data);
+
             const margin = { top: 50, right: 50, bottom: 50, left: 50 };
             const width = 500 - margin.left - margin.right;
             const height = 500 - margin.top - margin.bottom;
@@ -235,7 +258,7 @@
                 .attr("transform", `translate(${margin.left},${margin.top})`);
 
             const x = d3.scaleLinear()
-                .domain([0, d3.max(df, d => d.x)])
+                .domain([d3.min(plt_data, d => d.att) * 1.05, d3.max(plt_data, d => d.att) * 1.05])
                 .range([0, width]);
 
             svg.append("g")
@@ -243,7 +266,7 @@
                 .call(d3.axisBottom(x));
 
             const y = d3.scaleLinear()
-                .domain([0, d3.max(df, d => d.y)])
+                .domain([d3.min(plt_data, d => d.def) * 1.05, d3.max(plt_data, d => d.def) * 1.05])
                 .range([height, 0]);
 
             svg.append("g")
@@ -252,7 +275,7 @@
             svg.append("text")
                 .attr("transform", `translate(${width / 2}, ${height + margin.top - 10})`)
                 .style("text-anchor", "middle")
-                .text("X Axis Label");
+                .text("Offensive Ability");
 
             svg.append("text")
                 .attr("transform", "rotate(-90)")
@@ -260,16 +283,29 @@
                 .attr("x", 0 - (height / 2))
                 .attr("dy", "1em")
                 .style("text-anchor", "middle")
-                .text("Y Axis Label");
+                .text("Defensive Ability");
 
             svg.selectAll("dot")
-                .data(df)
+                .data(plt_data)
                 .enter()
                 .append("circle")
-                .attr("cx", d => x(d.x))
-                .attr("cy", d => y(d.y))
+                .attr("cx", d => x(d.att))
+                .attr("cy", d => y(d.def))
                 .attr("r", 5)
                 .style("fill", "#69b3a2");
+            
+            svg.append("g")
+                .attr("font-family", "sans-serif")
+                .attr("font-size", 10)
+                .selectAll("text")
+                .data(plt_data)
+                .enter()
+                .append("text")
+                .attr("x", d => x(d.att))
+                .attr("y", d => y(d.def))
+                .attr("dy", -5)
+                .attr("dx", 5)
+                .text(d => d.team);
         }
     </script>
 </body>
