@@ -23,6 +23,9 @@
                 <li class="nav-item">
                     <a class="nav-link">Season Projection</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link">Methodology</a>
+                </li>
             </ul>
         </div>
     </nav>
@@ -48,7 +51,9 @@
     <div class="container-fluid" id="team_params" style="display: none;">
         <div id = "team_params_plot"></div>
     </div>
-    <div class="container-fluid" id="season_projection" style="display: none;"></div>
+    <div class="container-fluid" id="season_projection" style="display: none;">
+        <div id = "season_projection_plot"></div>
+    </div>
 
     <!-- <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script> -->
     <!-- <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script> -->
@@ -56,6 +61,15 @@
     <script src="https://d3js.org/d3.v4.js"></script>
 
     <script>
+
+        // add season projection
+        fetch('/season_projection')
+            .then(response => response.json())
+            .then(data => {
+                create_boxplot(data, 'season_projection_plot');
+            })
+            .catch(error => console.error('Error fetching season projection:', error));
+
         // add team scatter plot
         fetch('/team_params')
             .then(response => response.json())
@@ -117,11 +131,16 @@
                 }
             });
         });
+
+        window.addEventListener('resize', function() {
+
+        });
     </script>
 
 
     <!-- Helper Functions -->   
      <script>
+        // Determine current size, which determines vars
         function create_heatmap(df, id, home_team_name, away_team_name, win_prob){
 
             d3.select(`#${id}`).select("svg").remove();
@@ -177,7 +196,7 @@
                 .attr("x", 0)
                 .attr("y", -50)
                 .attr("text-anchor", "left")
-                .style("font-size", "22px")
+                .style("font-size", "30px")
                 .html(`${home_team_name} vs ${away_team_name} Goal Heatmap`);
 
             // Add subtitle to graph
@@ -235,20 +254,20 @@
             d3.select(`#${id}`).select("svg").remove();
 
             const uniqueTeams = [...new Set(df.map(d => d.team))];
-            plt_data = uniqueTeams.map(team => {
-                const team_df = df.filter(d => d.team == team);
+            const plt_data = uniqueTeams.map(team => {
+                const team_df = df.filter(d => d.team === team);
                 return { 
-                    att: team_df.filter(d => d.type == "att")[0]["50%"], 
-                    def: -team_df.filter(d => d.type == "def")[0]["50%"], 
+                    att: team_df.find(d => d.type === "att")["50%"], 
+                    def: -team_df.find(d => d.type === "def")["50%"], 
                     team: team
-                }
+                };
             });
 
-            console.log(plt_data);
-
             const margin = { top: 50, right: 50, bottom: 50, left: 50 };
-            const width = 500 - margin.left - margin.right;
-            const height = 500 - margin.top - margin.bottom;
+            const width = 800 - margin.left - margin.right;
+            const height = 800 - margin.top - margin.bottom;
+
+
 
             const svg = d3.select(`#${id}`)
                 .append("svg")
@@ -256,6 +275,7 @@
                 .attr("height", height + margin.top + margin.bottom)
                 .append("g")
                 .attr("transform", `translate(${margin.left},${margin.top})`);
+
 
             const x = d3.scaleLinear()
                 .domain([d3.min(plt_data, d => d.att) * 1.05, d3.max(plt_data, d => d.att) * 1.05])
@@ -285,27 +305,99 @@
                 .style("text-anchor", "middle")
                 .text("Defensive Ability");
 
-            svg.selectAll("dot")
-                .data(plt_data)
-                .enter()
-                .append("circle")
-                .attr("cx", d => x(d.att))
-                .attr("cy", d => y(d.def))
-                .attr("r", 5)
-                .style("fill", "#69b3a2");
-            
-            svg.append("g")
+            const labels = svg.append("g")
                 .attr("font-family", "sans-serif")
-                .attr("font-size", 10)
+                .attr("font-size", 20)
                 .selectAll("text")
                 .data(plt_data)
                 .enter()
                 .append("text")
                 .attr("x", d => x(d.att))
                 .attr("y", d => y(d.def))
-                .attr("dy", -5)
-                .attr("dx", 5)
+                .attr("dy", 0)
+                .attr("dx", 0)
                 .text(d => d.team);
+
+
+            // Apply force simulation to avoid label overlap
+            const simulation = d3.forceSimulation(plt_data)
+                .force("x", d3.forceX(d => x(d.att)).strength(1))
+                .force("y", d3.forceY(d => y(d.def)).strength(1))
+                .force("collide", d3.forceCollide(10)) // Adjust the radius as needed
+                .on("tick", () => {
+                    labels
+                        .attr("x", d => d.x)
+                        .attr("y", d => d.y);
+                });
+
+            // Stop the simulation after a few seconds to save resources
+            setTimeout(() => simulation.stop(), 3000);
+        }
+        
+        function create_boxplot(data, id) {
+            d3.select(`#${id}`).select("svg").remove();
+
+            const margin = { top: 50, right: 50, bottom: 50, left: 50 };
+            const width = 1500 - margin.left - margin.right;
+            const height = 900 - margin.top - margin.bottom;
+
+            const svg = d3.select(`#${id}`)
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const teams = Object.keys(data);
+            const values = Object.values(data).flat();
+
+            const x = d3.scaleBand()
+                .range([0, width])
+                .domain(teams)
+                .padding(0.2);
+
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x));
+
+            const y = d3.scaleLinear()
+                .domain([d3.min(values), d3.max(values)])
+                .range([height, 0]);
+
+            svg.append("g")
+                .call(d3.axisLeft(y));
+
+            teams.forEach(team => {
+                const teamData = data[team].sort(d3.ascending);
+                const q1 = d3.quantile(teamData, 0.25);
+                const median = d3.quantile(teamData, 0.5);
+                const q3 = d3.quantile(teamData, 0.75);
+                const interQuantileRange = q3 - q1;
+                const min = q1 - 1.5 * interQuantileRange;
+                const max = q3 + 1.5 * interQuantileRange;
+
+                svg.append("line")
+                    .attr("x1", x(team) + x.bandwidth() / 2)
+                    .attr("x2", x(team) + x.bandwidth() / 2)
+                    .attr("y1", y(min))
+                    .attr("y2", y(max))
+                    .attr("stroke", "black");
+
+                svg.append("rect")
+                    .attr("x", x(team))
+                    .attr("y", y(q3))
+                    .attr("height", y(q1) - y(q3))
+                    .attr("width", x.bandwidth())
+                    .attr("stroke", "black")
+                    .style("fill", "#69b3a2");
+
+                svg.append("line")
+                    .attr("x1", x(team))
+                    .attr("x2", x(team) + x.bandwidth())
+                    .attr("y1", y(median))
+                    .attr("y2", y(median))
+                    .attr("stroke", "black");
+            });
         }
     </script>
 </body>

@@ -239,11 +239,12 @@ class GamePredModel:
         pass
 
 
-    def get_season_prediction(self) -> dict[str, int]:
+    def get_season_prediction(self, overwrite = False) -> dict[str, int]:
         
-        if os.path.exists("data/seasons_proj.json"):
-            with open("data/seasons_proj.json", "r") as f:
-                return json.load(f)
+        if not overwrite:
+            if os.path.exists("data/seasons_proj.json"):
+                with open("data/seasons_proj.json", "r") as f:
+                    return json.load(f)
 
 
         today_date = datetime.now().strftime("%Y-%m-%d")
