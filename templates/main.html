@@ -85,6 +85,7 @@
             tomorrows: getTomorrowsDate()
         };
         
+        // creating dropdown options for today's and tomorrow's games
         for (const [key, value] of Object.entries(dateMap)) {
 
             fetch(`/game_ids/${value}`, { method: 'GET' })
@@ -103,6 +104,8 @@
 
         }
 
+
+        // ======== Updating the game prediction plot =========
         document.getElementById("gameSelect").addEventListener("change", function(event) {
             const selectedOption = event.target.selectedOptions[0];
             const date = selectedOption.value;
@@ -113,22 +116,33 @@
                 .then(response => response.json())
                 .then(data => {
                     create_heatmap(data.table_of_pred, 'heat_map', home_team, away_team, data.home_team_win_prob);
-                    create_scatterplot(data.team_params, 'team_parameters_plot');
                 })
                 .catch(error => {
                     console.error('Failed to fetch game prediction: ', error);
                 });
         });
 
-        // ======== Updating the season projection plot =========
-        // fetch(`/season_projection`, { method: 'GET' })
-        //     .then(response => response.json())
-        //     .then(data => {
-        //         create_boxplot(data, 'season_projection_plot');
-        //     })
-        //     .catch(error => {
-        //         console.error('Failed to fetch season projection: ', error);
-        //     });
+        // add team params plot
+        fetch(`/team_params`, { method: 'GET' })
+            .then(response => response.json())
+            .then(data => {
+                console.log(data);
+                create_scatterplot(data["team_params"], 'team_parameters_plot');
+            })
+            .catch(error => {
+                console.error('Failed to fetch team parameters: ', error);
+            });
+            
+        
+        // adding season projection plot
+        fetch(`/season_projection`, { method: 'GET' })
+            .then(response => response.json())
+            .then(data => {
+                create_boxplot(data, 'season_projection_plot');
+            })
+            .catch(error => {
+                console.error('Failed to fetch season projection: ', error);
+            });
 
         function create_heatmap(df, id, home_team_name, away_team_name, win_prob){
             const z = df.map(d => d.len);

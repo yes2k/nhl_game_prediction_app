@@ -23,7 +23,7 @@ app = FastAPI()
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    return templates.TemplateResponse(request=request, name="main.html")
+    return templates.TemplateResponse(request=request, name="main3.html")
 
 
 @app.get("/game/{date_of_pred}")
@@ -33,7 +33,7 @@ async def get_predictions(date_of_pred: str, home_team: str, away_team: str):
     out = Mod.get_prediction(date_of_pred, season, home_team, away_team)
     return { 
         'table_of_pred': out.pred_table.to_dicts(), 
-        'home_team_win_prob': out.prob_home_team_win * 100
+        'home_team_win_prob': round(out.prob_home_team_win * 100, 2)
     }
 
 

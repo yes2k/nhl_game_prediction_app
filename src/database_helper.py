@@ -134,8 +134,9 @@ def build_database(start_date: str, path_to_db: str) -> None:
     )
 
     # Getting the season predictions
+    season_proj = mod.get_season_prediction()
     with open('data/seasons_proj.json', 'w') as f:
-        json.dump(mod.get_season_prediction(), f)
+        json.dump(season_proj, f)
     
 
 def update_database(path_to_db: str) -> None:
@@ -213,7 +214,8 @@ def update_database(path_to_db: str) -> None:
         pl.concat(pred_goal_data, how = "vertical_relaxed")
         .write_database(
             table_name = "pred_goal_data",
-            connection = f"sqlite:///{path_to_db}/data.db"
+            connection = f"sqlite:///{path_to_db}/data.db",
+            if_table_exists="replace"
         )
     )
 
@@ -222,13 +224,15 @@ def update_database(path_to_db: str) -> None:
         mod.get_team_params(date_range2[0], helper.get_nhl_season(date_range2[0]))
         .write_database(
             table_name = "team_params",
-            connection = f"sqlite:///{path_to_db}/data.db"
+            connection = f"sqlite:///{path_to_db}/data.db",
+            if_table_exists="replace"
         )
     )
 
     # Getting the season predictions
+    season_proj = mod.get_season_prediction()
     with open('data/seasons_proj.json', 'w') as f:
-        json.dump(mod.get_season_prediction(), f)
+        json.dump(season_proj, f)
 
 
 if __name__  == "__main__":
