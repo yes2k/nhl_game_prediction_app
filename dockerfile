@@ -6,11 +6,12 @@ FROM python:3.12
 ENV CSVER=2.35.0
 ENV CMDSTAN=/opt/cmdstan-$CSVER
 
+WORKDIR /app
 
-COPY /src /src
-COPY /data /data
-COPY /templates /templates
-COPY requirements.txt requirements.txt
+COPY /src /app/src
+COPY /data /app/data
+COPY /templates /app/templates
+COPY requirements.txt /app/requirements.txt
 
 
 # ================ Installing CMDSTAN ==================
@@ -31,12 +32,9 @@ COPY make/local $CMDSTAN/make/local
 # build cmdstan using 2 threads
 RUN cd cmdstan-$CSVER \
   && make -j2 build examples/bernoulli/bernoulli
-
 # ===================================================
 
 
-
-WORKDIR /
 
 # RUN pip install --upgrade --no-cache-dir -r requirements.txt
 RUN pip install -r requirements.txt

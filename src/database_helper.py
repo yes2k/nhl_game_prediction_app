@@ -8,10 +8,7 @@ from argparse import ArgumentParser
 import os
 import json
 
-# import src.model as model
-# import src.helper as helper 
-
-import model as model
+import api.model as model
 import helper as helper 
 
 def get_reg_goals(date: str):

@@ -8,13 +8,14 @@ import requests
 from datetime import date, timedelta, datetime
 
 import model as model
-import helper as helper
+import src.helper as helper
+
 
 templates = Jinja2Templates(directory="templates")
 
 Mod = model.GamePredModel(
     "data/data.db",
-    "src/model/model.stan"
+    "src/api/model/model.stan"
 )
 
 

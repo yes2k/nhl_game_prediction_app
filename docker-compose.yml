@@ -1,18 +1,17 @@
 version: '3.8'
 
 services:
-  fastapi:
+  api:
     build:
-      context: .
-      dockerfile: dockerfile
+      dockerfile: Dockerfile
     ports:
-      - "8000:8000"
-    volumes:
-      - .:/
+      - "8000:80"
 
-  cron:
-    build:
-      context: .
-      dockerfile: dockerfile.cron
-    volumes:
-      - .:/
+  db_updater:
+    build: .
+    container_name: db_updater_container
+    command: ["python", "src/database_helper.py", "--type", "update", "--pathtodb", "data"]
+    restart: unless-stopped
+
+volumes:
+  database:
