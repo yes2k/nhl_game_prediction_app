@@ -1,4 +1,4 @@
-# cmdstan installation porttion of this dockerfile "inspired" by this: https://github.com/storopoli/cmdstanpy-docker/
+# cmdstan installation portion of this dockerfile "inspired" by this: https://github.com/storopoli/cmdstanpy-docker/
 
 FROM python:3.12
 
@@ -12,10 +12,10 @@ COPY /data /data
 COPY /templates /templates
 COPY requirements.txt requirements.txt
 
+
+# ================ Installing CMDSTAN ==================
 # install openMPI and MPI's mpicxx binary
 RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl libopenmpi-dev mpi-default-dev
-
-
 
 # set workdir for /opt/cmdstan-CSVER
 WORKDIR /opt/
@@ -32,6 +32,10 @@ COPY make/local $CMDSTAN/make/local
 RUN cd cmdstan-$CSVER \
   && make -j2 build examples/bernoulli/bernoulli
 
+# ===================================================
+
+
+
 WORKDIR /
 
 # RUN pip install --upgrade --no-cache-dir -r requirements.txt
@@ -42,7 +46,5 @@ RUN ["python", "src/database_helper.py", "--type", "update", "--pathtodb", "data
 
 # Start api
 CMD ["fastapi", "run", "./src/api.py", "--port", "80"]
-
-
 
 EXPOSE 80

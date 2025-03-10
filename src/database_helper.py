@@ -163,16 +163,15 @@ def update_database(path_to_db: str) -> None:
         print(d)
         out.append(pl.DataFrame(get_reg_goals(d)))
     
-    if len(out) == 0:
-        print("No new data to update")
-        return
+    if len(out) != 0:
+        df = pl.concat(out, how = "diagonal")
+        df.write_database(
+            table_name = "goal_data",
+            connection = f"sqlite:///{path_to_db}/data.db",
+            if_table_exists="append"
+        )
 
-    df = pl.concat(out, how = "diagonal")
-    df.write_database(
-        table_name = "goal_data",
-        connection = f"sqlite:///{path_to_db}/data.db",
-        if_table_exists="append"
-    )
+
 
     # team_params = []
     mod = model.GamePredModel(f"{path_to_db}/data.db", "src/model/model.stan")
@@ -221,7 +220,7 @@ def update_database(path_to_db: str) -> None:
 
     # Getting latest team parameters
     (
-        mod.get_team_params(date_range2[0], helper.get_nhl_season(date_range2[0]))
+        mod.get_team_params()
         .write_database(
             table_name = "team_params",
             connection = f"sqlite:///{path_to_db}/data.db",
@@ -230,7 +229,7 @@ def update_database(path_to_db: str) -> None:
     )
 
     # Getting the season predictions
-    season_proj = mod.get_season_prediction()
+    season_proj = mod.get_season_prediction(overwrite=True)
     with open('data/seasons_proj.json', 'w') as f:
         json.dump(season_proj, f)
 
