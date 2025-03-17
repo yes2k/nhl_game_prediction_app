@@ -12,6 +12,7 @@ COPY /src /app/src
 COPY /data /app/data
 COPY /templates /app/templates
 COPY requirements.txt /app/requirements.txt
+# COPY update_cron /app/update_cron
 
 
 # ================ Installing CMDSTAN ==================
@@ -36,13 +37,33 @@ RUN cd cmdstan-$CSVER \
 
 
 
-# RUN pip install --upgrade --no-cache-dir -r requirements.txt
-RUN pip install -r requirements.txt
-
-# Create Database 
+WORKDIR /app/
+RUN pip install --upgrade --no-cache-dir -r requirements.txt
+# RUN pip install -r requirements.txt
+# Update Database 
 RUN ["python", "src/database_helper.py", "--type", "update", "--pathtodb", "data"]
 
-# Start api
-CMD ["fastapi", "run", "./src/api.py", "--port", "80"]
+
+
+# ======== Cron Job stuff ========
+# install cron
+RUN apt-get install cron
+
+# Add the cron job
+COPY update_cron /etc/cron.d/update_cron
+
+# Give execution rights on the cron job
+RUN chmod 0644 /etc/cron.d/update_cron
+
+# Apply cron job
+RUN crontab /etc/cron.d/update_cron
+
+# Create the log file to be able to run tail
+RUN touch /var/log/cron.log
+# ===============================
+
+# Start api and run cron
+CMD cron && tail -f /var/log/cron.log & fastapi run ./src/api.py --port 80
+
 
 EXPOSE 80

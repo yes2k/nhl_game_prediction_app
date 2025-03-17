@@ -74,6 +74,7 @@
         fetch('/team_params')
             .then(response => response.json())
             .then(data => {
+                data['team_params'].sort((a, b) => d3.mean(a.values) - d3.mean(b.values));
                 create_scatterplot(data['team_params'], 'team_params_plot');
             })
             .catch(error => console.error('Error fetching team parameters:', error));

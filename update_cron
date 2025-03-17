@@ -1,0 +1,2 @@
+# 0 9 * * * root python /app/src/database_helper.py --type update --pathtodb /app/data >> /var/log/cron.log 2>&1
+* * * * * root echo "Hello world" >> /var/log/cron.log 2>&1

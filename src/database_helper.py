@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 import os
 import json
 
-import api.model as model
+import model as model
 import helper as helper 
 
 def get_reg_goals(date: str):
@@ -45,7 +45,6 @@ def get_reg_goals(date: str):
         data = requests.get(url).json()
     except:
         print("url not found")
-
 
 
     out = []
@@ -143,6 +142,7 @@ def update_database(path_to_db: str) -> None:
     con.close()
 
     max_date = datetime.strptime(max_date, "%Y-%m-%d")
+    print(f"Max date in database: {max_date}")
 
     date_range = (
         pl
@@ -154,6 +154,8 @@ def update_database(path_to_db: str) -> None:
         .cast(pl.String)
         .alias("date").to_list()
     )
+    print(f"Date range to update: {date_range}")
+
 
     out = []
     for d in date_range:
