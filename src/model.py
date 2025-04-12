@@ -231,6 +231,95 @@ class GamePredModel:
         )
 
 
+    def get_playoff_prediction(self, max_date: str, season: str, home_team: str, away_team: str) -> pl.DataFrame:
+        con = sqlite3.connect(self.path_to_db)
+        cursor = con.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='pred_goal_data';")
+        table_exists = cursor.fetchone()
+
+        if table_exists:
+            query = f"""
+                SELECT date_of_game as date, CAST(game_id as text) game_id, away_team, 
+                    home, away, prob_home_team_win, len
+                FROM pred_goal_data
+                WHERE date == "{max_date}" AND home_team == "{home_team}" AND away_team == "{away_team}"
+                ORDER BY game_id
+            """
+            out = pl.read_database(query=query, connection=con)
+
+            if out.shape[0] > 0:
+                return PredResult(out.drop("prob_home_team_win"), out["prob_home_team_win"][0], pl.DataFrame())
+
+        games = [
+            {"home_team": home_team, "away_team": away_team, "pred_df": None},
+            {"home_team": home_team, "away_team": away_team, "pred_df": None},
+            {"home_team": away_team, "away_team": home_team, "pred_df": None},
+            {"home_team": away_team, "away_team": home_team, "pred_df": None},
+            {"home_team": home_team, "away_team": away_team, "pred_df": None},
+            {"home_team": away_team, "away_team": home_team, "pred_df": None},
+            {"home_team": home_team, "away_team": away_team, "pred_df": None}
+        ]
+        for i in range(7):
+            model = self.__fit_model(max_date, season, games[i]["home_team"], games[i]["away_team"])
+
+            # extracting predicted home and away goals from the model
+            home_new_draw = model.model.stan_variable("pred_home_goals")
+            away_new_draw = model.model.stan_variable("pred_away_goals")
+            prob_home_team_ot_win = model.model.stan_variable("home_ot_win_prob")
+
+            pred_df = (
+                pl.DataFrame({
+                    "home_new_draw": home_new_draw,
+                    "away_new_draw": away_new_draw,
+                    "prob_home_team_ot_win": prob_home_team_ot_win
+                }).explode("home_new_draw", "away_new_draw", "prob_home_team_ot_win")
+                .rename({"home_new_draw": "home", "away_new_draw": "away"})
+                .with_columns(
+                    pl.when(pl.col("home") > pl.col("away")).then(pl.lit(games[i]["home_team"]))
+                    .when(pl.col("home") < pl.col("away")).then(pl.lit(games[i]["away_team"]))
+                    .when(pl.col("home") == pl.col("away"))
+                        .then(
+                            pl.when(pl.col("prob_home_team_ot_win") >= 0.5).then(pl.lit(games[i]["home_team"]))
+                            .otherwise(pl.lit(games[i]["away_team"]))
+                        )
+                    .alias(f"game_{i+1}_res")
+                )
+            )
+
+            games[i]["pred_df"] = pred_df
+        
+
+        def playoff_res(row):
+            teams = list(set(row))
+            if len(teams) != 2:
+                return f"{teams[0]} Win in 4 games"
+            
+            t1, t2 = teams
+            res = {t1: 0, t2: 0}
+            for i, teams in enumerate(row):
+                if teams == t1:
+                    res[t1] += 1
+                else:
+                    res[t2] += 1
+                
+                if res[t1] == 4:
+                    return f"{t1} Win in {i+1} games"
+                elif res[t2] == 4:
+                    return f"{t2} Win in {i+1} games"
+        playoff_sim = (
+            pl.concat(map(lambda x: x[1]["pred_df"].select(f"game_{x[0]+1}_res"), enumerate(games)), how="horizontal")
+            .map_rows(playoff_res)
+            .group_by("map")
+            .count()
+            .sort("count")
+            .with_columns(
+                ((pl.col("count").cast(pl.Float32) / pl.col("count").sum()) * 100).alias("prob")
+            )
+        )
+
+        return playoff_sim
+    
+
     def get_log_loss(self):
         pass
 

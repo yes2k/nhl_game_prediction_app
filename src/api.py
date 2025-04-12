@@ -16,7 +16,7 @@ templates = Jinja2Templates(directory="templates")
 
 Mod = model.GamePredModel(
     "data/data.db",
-    "src/api/model/model.stan"
+    "src/model/model.stan"
 )
 
 
