@@ -8,7 +8,8 @@ import requests
 from datetime import date, timedelta, datetime
 
 import model as model
-import src.helper as helper
+# import src.helper as helper
+import helper as helper
 
 
 templates = Jinja2Templates(directory="templates")
