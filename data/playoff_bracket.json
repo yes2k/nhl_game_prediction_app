@@ -1,0 +1,122 @@
+{
+    "round_1": {
+        "eastern_conference": {
+            "matchups": {
+                "matchup_1": {
+                    "home": "TOR",
+                    "away": "OTT",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_2": {
+                    "home": "TBL",
+                    "away": "FLA",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_3": {
+                    "home": "WSH",
+                    "away": "MTL",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_4": {
+                    "home": "CAR",
+                    "away": "NJD",
+                    "winner": "",
+                    "games": ""
+                }
+            }
+        },
+        "western_conference": {
+            "matchups": {
+                "matchup_1": {
+                    "home": "WPG",
+                    "away": "MIN",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_2": {
+                    "home": "DAL",
+                    "away": "COL",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_3": {
+                    "home": "VGK",
+                    "away": "STL",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_4": {
+                    "home": "LAK",
+                    "away": "EDM",
+                    "winner": "",
+                    "games": ""
+                }
+            }
+        }
+    },
+    "round_2": {
+        "eastern_conference": {
+            "matchups": {
+                "matchup_1": {
+                    "home": "",
+                    "away": "",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_2": {
+                    "home": "",
+                    "away": "",
+                    "winner": "",
+                    "games": ""
+                }
+            }
+        },
+        "western_conference": {
+            "matchups": {
+                "matchup_1": {
+                    "home": "",
+                    "away": "",
+                    "winner": "",
+                    "games": ""
+                },
+                "matchup_2": {
+                    "home": "",
+                    "away": "",
+                    "winner": "",
+                    "games": ""
+                }
+            }
+        }
+    },
+    "round_3": {
+        "eastern_conference": {
+            "matchups": {
+                "matchup_1": {
+                    "home": "",
+                    "away": "",
+                    "winner": "",
+                    "games": ""
+                }
+            }
+        },
+        "western_conference": {
+            "matchups": {
+                "matchup_1": {
+                    "home": "",
+                    "away": "",
+                    "winner": "",
+                    "games": ""
+                }
+            }
+        }
+    },
+    "finals": {
+        "home": "",
+        "away": "",
+        "winner": "",
+        "games": ""
+    }
+}
