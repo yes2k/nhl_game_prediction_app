@@ -18,16 +18,20 @@ class PlayoffSim:
             "src/model/model.stan"
         )
 
-        # round 1 eastern conference
-        for k, v in self.nhl_playoff_bracket["round_1"]["eastern_conference"]["matchups"].items():
-            home_team = v["home"]
-            away_team = v["away"]
-            date_of_pred = date.today().strftime("%Y-%m-%d")  # Get today's date in YYYY-MM-DD format
-            season = helper.get_nhl_season(date_of_pred)
-            out = Mod.get_playoff_prediction(date_of_pred, season, home_team, away_team)
-            winning_team = out.filter(pl.col("prob") == pl.col("prob").max())["map"][0]
-            v["winner"] = winning_team[0:3]
-            v["games"] = re.findall("\\d", winning_team)[0]
+
+        for round in ["round_1"]:
+            if round != "finals":
+                for conference in ["eastern_conference", "western_conference"]:
+                    for k, v in self.nhl_playoff_bracket[round][conference]["matchups"].items():
+                        home_team = v["home"]
+                        away_team = v["away"]
+                        date_of_pred = date.today().strftime("%Y-%m-%d")  # Get today's date in YYYY-MM-DD format
+                        season = helper.get_nhl_season(date_of_pred)
+                        out = Mod.get_playoff_prediction(date_of_pred, season, home_team, away_team)
+                        winning_team = out.filter(pl.col("prob") == pl.col("prob").max())["map"][0]
+                        v["winner"] = winning_team[0:3]
+                        v["games"] = re.findall("\\d", winning_team)[0]
+        
         
         print(self.nhl_playoff_bracket)
 
